@@ -344,9 +344,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For questions, suggestions, or collaborations, please reach out:
 
-- **Project Owner**: [Your Name]
-- **Email**: [Your Email]
-- **Institution**: [Your University/Organization]
+- **Project Owner**: Maulishka Srivastava
 
 ---
 
