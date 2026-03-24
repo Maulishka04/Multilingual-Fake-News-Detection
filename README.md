@@ -113,38 +113,42 @@ For detailed visualizations, see the EDA notebooks in the `notebooks/` directory
 ```
 Multilingual Fake News Detection/
 │
-├── README.md                          # Project documentation
-├── .gitignore                         # Git ignore rules
-├── requirements.txt                   # Python dependencies
+├── README.md                           # Project documentation
+├── .gitignore                          # Git ignore rules
+├── requirements.txt                    # Python dependencies
+├── app.py                              # Streamlit deployment dashboard (Phase 4)
 │
-├── dataset/                           # Raw and processed datasets
-│   ├── dataset-merged (HFDND).csv    # Hindi Fake News Dataset
-│   ├── IFND.csv                      # Indian Fake News Dataset
-│   ├── LIAR_train.tsv                # LIAR training set
-│   ├── LIAR_test.tsv                 # LIAR test set
-│   ├── LIAR_valid.tsv                # LIAR validation set
-│   ├── unified_dataset.csv           # Combined dataset
-│   └── unified_cleaned_dataset.csv   # Cleaned and preprocessed dataset
+├── dataset/                            # Raw and processed datasets (local, not pushed)
+│   ├── dataset-merged (HFDND).csv     # Hindi Fake News Dataset
+│   ├── IFND.csv                       # Indian Fake News Dataset
+│   ├── LIAR_train.tsv                 # LIAR training set
+│   ├── LIAR_test.tsv                  # LIAR test set
+│   ├── LIAR_valid.tsv                 # LIAR validation set
+│   ├── unified_dataset.csv            # Combined dataset
+│   └── unified_cleaned_dataset.csv    # Cleaned and preprocessed dataset
 │
-├── notebooks/                         # Jupyter notebooks for analysis
-│   ├── 01_dataset_overview.ipynb     # Dataset exploration
-│   ├── 02_dataset_analysis.ipynb     # EDA and statistics
-│   └── 03_preprocessing.ipynb        # Data cleaning pipeline
+├── notebooks/                          # Jupyter notebooks for analysis/training/XAI
+│   ├── 01_dataset_overview.ipynb      # Dataset exploration
+│   ├── 02_dataset_analysis.ipynb      # EDA and statistics
+│   ├── 03_preprocessing.ipynb         # Data cleaning pipeline
+│   ├── 04_model_training.ipynb        # 4-model TF-IDF training and evaluation
+│   └── 05_explainable_ai_xai.ipynb    # SHAP + LIME explainability analysis
 │
-├── scripts/                           # Python scripts for processing
-│   ├── preprocess.py                 # Preprocessing utilities
-│   ├── train.py                      # Model training scripts
-│   └── evaluate.py                   # Model evaluation utilities
+├── scripts/                            # Reserved for utility scripts
 │
-├── models/                            # Trained models (not tracked in git)
-│   ├── tfidf_lr_model.pkl            # TF-IDF + Logistic Regression
-│   ├── tfidf_svm_model.pkl           # TF-IDF + SVM
-│   └── transformer_models/           # Fine-tuned BERT models
+├── models/                             # Trained model artifacts (local, not pushed)
+│   ├── tfidf_vectorizer.pkl
+│   ├── logistic_regression_tfidf.pkl
+│   ├── linear_svc_calibrated_tfidf.pkl
+│   ├── naive_bayes_tfidf.pkl
+│   └── passive_aggressive_tfidf.pkl
 │
-└── outputs/                           # Analysis outputs and results
-    ├── model_metrics.json            # Performance metrics
-    ├── feature_importance.png        # Feature analysis plots
-    └── predictions.csv               # Model predictions
+└── outputs/
+   └── xai/                           # Explainability outputs generated from Notebook 05
+      ├── 01_shap_bar_logistic_regression.png
+      ├── 03_shap_bar_linear_svm.png
+      ├── 06_shap_hindi_vs_english_comparison.png
+      └── XAI_ANALYSIS_SUMMARY_REPORT.txt
 ```
 
 ---
