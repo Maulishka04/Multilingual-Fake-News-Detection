@@ -57,3 +57,18 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Project artifacts: keep repository code-only
+dataset/
+models/*.pkl
+models/**/*.pkl
+outputs/
+
+# Large tabular/text datasets
+*.csv
+*.tsv
+*.parquet
+*.feather
+
+# Notebook execution noise
+*.ipynb_checkpoints

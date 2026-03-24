@@ -242,6 +242,31 @@ python scripts/explain.py --model models/transformer_models/mbert \
                           --text "Sample news article text"
 ```
 
+### 6. Run Streamlit Dashboard (Phase 4)
+
+```bash
+streamlit run app.py
+```
+
+The dashboard includes:
+- Real-time multilingual fake news prediction (Hindi + English)
+- Model selection across Logistic Regression, Linear SVM, Naive Bayes, and Passive Aggressive
+- Confidence score, fake probability, and language detection
+- LIME word-level local explanations (LR/SVM/NB)
+- SHAP global insights and model comparison analytics
+
+---
+
+## Repository Hygiene (Code-Only Push Policy)
+
+To keep this repository lightweight and safe:
+- Do not commit raw/processed datasets from `dataset/`
+- Do not commit model binaries (`.pkl`) from `models/`
+- Do not commit generated artifacts from `outputs/`
+- Commit only source code, configuration, and documentation
+
+Large or sensitive files should be stored in secure cloud/object storage and referenced via documentation.
+
 ---
 
 ## Future Work
@@ -356,6 +381,6 @@ For questions, suggestions, or collaborations, please reach out:
 
 ---
 
-**Last Updated**: February 19, 2026
+**Last Updated**: March 24, 2026
 
-**Status**: Active Development - Phase 1 (Data Preparation & EDA) Complete
+**Status**: Active Development - Phase 4 (Interactive Streamlit Deployment) Implemented
