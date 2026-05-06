@@ -1,0 +1,25 @@
+{
+  "title": "Multilingual Fake News Detection Dataset for mBERT",
+  "id": "maulishkasrivastava/multilingual-fake-news-mbert",
+  "licenses": [
+    {
+      "name": "cc0-1.0"
+    }
+  ],
+  "resources": [
+    {
+      "path": "fake_news_dataset_for_mbert.csv"
+    }
+  ],
+  "keywords": [
+    "fake news",
+    "mbert",
+    "multilingual",
+    "nlp",
+    "text classification",
+    "hindi",
+    "english"
+  ],
+  "collaborators": [],
+  "data": []
+}

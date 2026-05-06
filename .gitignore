@@ -72,3 +72,53 @@ outputs/
 
 # Notebook execution noise
 *.ipynb_checkpoints
+
+# 🔐 SENSITIVE DATA - NEVER UPLOAD
+.env
+.env.local
+.kaggle/
+*.api_key
+*.secret
+credentials.json
+secrets.json
+
+# 🔐 API KEYS & TOKENS
+config/keys/
+config/secrets/
+.aws/
+.gcp/
+
+# 🔐 DATABASE
+*.db
+*.sqlite
+*.sqlite3
+data/private/
+
+# 🔐 LARGE MODELS (already in .gitignore)
+models/*.pkl
+models/**/*.pkl
+*.pth
+*.pt
+*.bin
+models/**/*.safetensors
+
+# 🔐 USER DATA
+data/user_*
+uploads/
+temp/
+cache/
+
+# 🔐 LOGS & DEBUG
+logs/
+*.log
+debug/
+
+# 🔐 NODE MODULES & VENV
+node_modules/
+.venv/
+venv/
+ENV/
+
+# 🔐 OS FILES
+.DS_Store
+Thumbs.db

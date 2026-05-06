@@ -1,0 +1,678 @@
+﻿<!doctype html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VERIFY.AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-container": "#c284ff",
+            "on-secondary-container": "#f3f8ff",
+            "surface-container-lowest": "#000000",
+            "on-error": "#490013",
+            "on-surface-variant": "#adaaaa",
+            "secondary-container": "#006591",
+            "on-tertiary-fixed-variant": "#005561",
+            "surface-dim": "#0e0e0e",
+            "secondary-fixed-dim": "#81ccff",
+            "primary-dim": "#9c48ea",
+            "on-tertiary": "#005561",
+            "on-primary-container": "#360061",
+            "tertiary-fixed": "#3adffa",
+            "on-tertiary-container": "#004b56",
+            "secondary-dim": "#17a8ec",
+            "surface-container-high": "#201f1f",
+            "surface-container-highest": "#262626",
+            "error-container": "#a70138",
+            "inverse-on-surface": "#565554",
+            "primary": "#cc97ff",
+            "on-background": "#ffffff",
+            "tertiary-dim": "#1ad0eb",
+            "secondary": "#34b5fa",
+            "on-primary": "#47007c",
+            "on-secondary-fixed": "#003853",
+            "surface-tint": "#cc97ff",
+            "outline": "#777575",
+            "inverse-primary": "#842cd3",
+            "primary-fixed-dim": "#b971ff",
+            "on-secondary": "#003047",
+            "on-tertiary-fixed": "#00363e",
+            "inverse-surface": "#fcf8f8",
+            "tertiary-fixed-dim": "#1ad0eb",
+            "on-primary-fixed": "#000000",
+            "surface-variant": "#262626",
+            "on-primary-fixed-variant": "#430076",
+            "surface-container": "#1a1919",
+            "background": "#0e0e0e",
+            "on-surface": "#ffffff",
+            "outline-variant": "#494847",
+            "on-error-container": "#ffb2b9",
+            "surface": "#0e0e0e",
+            "on-secondary-fixed-variant": "#00567c",
+            "tertiary-container": "#3adffa",
+            "surface-bright": "#2c2c2c",
+            "tertiary": "#7de9ff",
+            "surface-container-low": "#131313",
+            "error-dim": "#d73357",
+            "primary-fixed": "#c284ff",
+            "secondary-fixed": "#a4d8ff",
+            "error": "#ff6e84"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          fontFamily: {
+            headline: ["Space Grotesk"],
+            body: ["Manrope"],
+            label: ["Space Grotesk"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-panel {
+      background: rgba(38, 38, 38, 0.4);
+      backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+    .glass-panel::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      background: linear-gradient(45deg, rgba(204, 151, 255, 0.2), transparent, rgba(125, 233, 255, 0.2));
+      z-index: -1;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .neon-glow-primary { box-shadow: 0 0 20px rgba(204, 151, 255, 0.3); }
+    .siren-red {
+      box-shadow: 0 0 40px rgba(255, 110, 132, 0.4);
+      border: 2px solid rgba(255, 110, 132, 0.3);
+    }
+    .glow-green { text-shadow: 0 0 15px rgba(125, 233, 255, 0.6); }
+    .hero-gradient {
+      background: radial-gradient(circle at top center, rgba(156, 72, 234, 0.15) 0%, rgba(52, 181, 250, 0.05) 50%, transparent 100%);
+    }
+    #particles-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .btn-charging {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-charging:hover {
+      box-shadow: 0 0 30px rgba(204, 151, 255, 0.6), 0 0 60px rgba(52, 181, 250, 0.4);
+      transform: scale(1.05) translateY(-2px);
+    }
+    .btn-charging::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.3), transparent 40%);
+      animation: rotate 2s linear infinite;
+      display: none;
+    }
+    .btn-charging:hover::before { display: block; }
+    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes scan { 0% { transform: translateY(-100%); opacity: 0; } 50% { opacity: 0.5; } 100% { transform: translateY(300%); opacity: 0; } }
+    .scanner-beam {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #cc97ff, #34b5fa, transparent);
+      box-shadow: 0 0 15px #cc97ff;
+      animation: scan 4s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .card-3d {
+      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+    .card-3d:hover {
+      transform: translateY(-10px) rotateX(4deg) rotateY(-4deg);
+      box-shadow: 0 20px 40px rgba(156, 72, 234, 0.2), 0 0 20px rgba(255, 255, 255, 0.05);
+      border-color: rgba(204, 151, 255, 0.4);
+    }
+    .chromatic-border { position: relative; }
+    .chromatic-border::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      background: linear-gradient(135deg, #ff00ff, transparent, #00ffff);
+      z-index: -1;
+      opacity: 0.15;
+      filter: blur(1px);
+      border-radius: inherit;
+    }
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 1.5rem;
+    }
+    .integrity-needle {
+      transform-origin: bottom center;
+      transition: transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .integrity-track {
+      background: linear-gradient(90deg, #7de9ff 0%, #34b5fa 45%, #cc97ff 70%, #ff6e84 100%);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 min-h-screen flex flex-col">
+  <canvas id="particles-canvas"></canvas>
+
+  <header class="fixed top-0 w-full z-50 bg-neutral-950/60 backdrop-blur-3xl shadow-2xl shadow-violet-500/10 bg-gradient-to-b from-neutral-800/20 to-transparent border-b border-white/5">
+    <nav class="flex justify-between items-center px-4 md:px-8 h-20 w-full max-w-7xl mx-auto gap-4">
+      <div class="text-2xl font-bold tracking-tighter text-white font-headline flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary-fixed">V</span>
+        VERIFY.AI
+      </div>
+      <div class="hidden md:flex items-center gap-8">
+        <a class="text-neutral-400 hover:text-white transition-colors font-headline tracking-tight text-violet-400 font-bold border-b-2 border-violet-500 pb-1" href="#">Deep Scan</a>
+        <a class="text-neutral-400 hover:text-white transition-colors font-headline tracking-tight" href="#">Archive</a>
+        <a class="text-neutral-400 hover:text-white transition-colors font-headline tracking-tight" href="#">Methodology</a>
+        <a class="text-neutral-400 hover:text-white transition-colors font-headline tracking-tight" href="#">API</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="backend-url" class="w-40 md:w-56 rounded-xl bg-surface-container-high border border-outline-variant/30 text-xs" placeholder="http://127.0.0.1:8000" />
+        <button id="theme-toggle" class="bg-surface-container-high text-on-surface px-3 py-2 rounded-xl text-xs">Theme</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="flex-grow pt-32 pb-20 hero-gradient">
+    <section class="max-w-7xl mx-auto px-4 md:px-8 flex flex-col items-center text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest border border-outline-variant/20 mb-8 animate-bounce">
+        <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+        <span class="text-xs font-label uppercase tracking-widest text-primary">Truth-seeking mode: ON</span>
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-headline font-bold tracking-tighter mb-6 max-w-4xl bg-gradient-to-b from-white to-neutral-500 bg-clip-text text-transparent leading-tight">
+        Detect Synthetic News with <span class="text-primary italic">Neural Precision</span>
+      </h1>
+      <p class="text-on-surface-variant text-lg md:text-xl max-w-2xl mb-12">
+        Deploy the world's most advanced adversarial network to identify misinformation, deepfakes, and propaganda in seconds.
+      </p>
+
+      <div class="w-full max-w-3xl glass-panel p-8 rounded-2xl border border-outline-variant/20 mb-20 relative overflow-hidden chromatic-border">
+        <div class="scanner-beam"></div>
+        <div class="absolute inset-0 bg-gradient-to-tr from-primary/5 to-secondary/5 pointer-events-none"></div>
+
+        <div class="relative flex items-center justify-between mb-2 px-1">
+          <span class="text-[10px] font-bold text-primary/60 tracking-widest uppercase">Input Terminal v4.2</span>
+          <span id="status-text" class="text-[10px] font-bold text-on-surface-variant/40 animate-pulse">Ready for scan</span>
+        </div>
+
+        <textarea id="news-input" class="relative w-full h-48 bg-surface-container-highest/30 border border-white/5 focus:ring-1 focus:ring-primary/30 text-xl font-body placeholder:text-on-surface-variant/40 resize-none rounded-xl mb-6 p-6 transition-all focus:bg-surface-container-highest/50" placeholder="Paste headline, article text, or social media link here..."></textarea>
+
+        <div class="relative flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="flex gap-3 flex-wrap">
+            <label class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-high border border-outline-variant/20 text-sm">
+              <span class="material-symbols-outlined text-lg">language</span>
+              <select id="lang-select" class="bg-transparent border-none text-sm focus:ring-0 p-0">
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+              </select>
+            </label>
+            <label class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-high border border-outline-variant/20 text-sm">
+              <input id="auto-lang" type="checkbox" checked class="rounded border-white/20 bg-transparent" />
+              Auto
+            </label>
+          </div>
+          <button id="analyze-btn" class="btn-charging w-full md:w-auto bg-gradient-to-r from-primary to-secondary text-on-primary-fixed px-10 py-4 rounded-xl font-bold font-headline text-lg active:scale-95 transition-transform neon-glow-primary">Analyze News</button>
+        </div>
+      </div>
+
+      <div class="bento-grid w-full max-w-7xl text-left">
+        <div id="fake-card" class="col-span-12 lg:col-span-7 bg-surface-container-low rounded-2xl p-8 neon-glow-error relative overflow-hidden card-3d">
+          <div class="absolute top-0 right-0 p-4">
+            <span class="bg-error/10 text-error px-4 py-1 rounded-full text-xs font-bold font-headline tracking-widest border border-error/30 uppercase">High Risk Detection</span>
+          </div>
+          <div class="flex flex-col h-full">
+            <div class="mb-8">
+              <h2 class="font-headline text-4xl font-black text-error mb-2 italic tracking-tighter">FAKE NEWS DETECTED</h2>
+              <p id="fake-summary" class="text-on-surface-variant font-body leading-relaxed max-w-lg min-h-[88px]">Waiting for analysis...</p>
+            </div>
+            <div class="mt-auto grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="bg-surface-container rounded-xl p-4 border-l-4 border-error card-3d">
+                <p class="text-xs text-neutral-500 font-headline uppercase mb-1">Authenticity</p>
+                <p id="fake-score" class="text-2xl font-bold font-headline text-white">00.0%</p>
+              </div>
+              <div class="bg-surface-container rounded-xl p-4 border-l-4 border-error card-3d">
+                <p class="text-xs text-neutral-500 font-headline uppercase mb-1">Propagation</p>
+                <p class="text-2xl font-bold font-headline text-white">High</p>
+              </div>
+              <div class="bg-surface-container rounded-xl p-4 border-l-4 border-error card-3d">
+                <p class="text-xs text-neutral-500 font-headline uppercase mb-1">Bot Activity</p>
+                <p class="text-2xl font-bold font-headline text-white">Watch</p>
+              </div>
+              <div class="bg-surface-container rounded-xl p-4 border-l-4 border-error card-3d">
+                <p class="text-xs text-neutral-500 font-headline uppercase mb-1">Misinformation</p>
+                <p class="text-2xl font-bold font-headline text-white">Likely</p>
+              </div>
+            </div>
+            <div class="mt-6">
+              <div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                <div id="fake-bar" class="h-full bg-gradient-to-r from-error to-error-dim" style="width:0%"></div>
+              </div>
+              <div id="fake-words" class="mt-4 flex flex-wrap gap-2"></div>
+            </div>
+          </div>
+          <div class="absolute -right-10 -bottom-10 opacity-10">
+            <span class="material-symbols-outlined text-[12rem] text-error">warning</span>
+          </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-5 bg-surface-container-high rounded-2xl p-8 glass-card flex flex-col items-center justify-center relative overflow-hidden card-3d">
+          <h3 class="font-headline text-sm font-bold uppercase tracking-widest text-neutral-400 mb-8">Narrative Integrity Gauge</h3>
+          <div class="relative w-64 h-32 mb-4">
+            <div class="absolute inset-0 rounded-t-full border-8 border-neutral-800"></div>
+            <div class="absolute left-3 right-3 top-3 h-1 rounded-full integrity-track opacity-25"></div>
+            <div id="integrity-needle" class="integrity-needle absolute bottom-0 left-1/2 w-1 h-32 bg-error -translate-x-1/2 origin-bottom rotate-[72deg] shadow-[0px_0px_15px_#ff6e84]"></div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 bg-surface-container-highest rounded-full border-4 border-neutral-700"></div>
+          </div>
+          <div class="flex justify-between w-full max-w-[16rem] text-[10px] font-headline text-neutral-600 font-bold uppercase tracking-tighter">
+            <span>Low Concern</span>
+            <span>High Concern</span>
+          </div>
+          <div class="mt-6 text-center">
+            <p id="integrity-label" class="text-4xl font-headline font-black text-white">STABLE</p>
+            <p id="integrity-note" class="text-neutral-500 text-xs mt-1">NARRATIVE RISK REMAINS LOW</p>
+          </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-8 bg-surface-container rounded-2xl p-8 border border-neutral-800/50 card-3d">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="font-headline text-xl font-bold">XAI Semantic Analysis</h3>
+            <div class="flex gap-2 flex-wrap justify-end">
+              <span class="flex items-center gap-1 text-[10px] uppercase font-bold text-tertiary">
+                <span class="w-2 h-2 rounded-full bg-tertiary"></span> Trust Signals
+              </span>
+              <span class="flex items-center gap-1 text-[10px] uppercase font-bold text-error">
+                <span class="w-2 h-2 rounded-full bg-error"></span> Red Flags
+              </span>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <div class="bg-error/5 hover:bg-error/10 border border-error/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-error font-headline font-medium text-sm">unverified source</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-error/50">Weight: 0.92</div>
+            </div>
+            <div class="bg-error/5 hover:bg-error/10 border border-error/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-error font-headline font-medium text-sm">emotional manipulation</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-error/50">Weight: 0.85</div>
+            </div>
+            <div class="bg-error/5 hover:bg-error/10 border border-error/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-error font-headline font-medium text-sm">sensationalist headline</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-error/50">Weight: 0.95</div>
+            </div>
+            <div class="bg-tertiary/5 hover:bg-tertiary/10 border border-tertiary/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-tertiary font-headline font-medium text-sm">structured metadata</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-tertiary/50">Weight: 0.12</div>
+            </div>
+            <div class="bg-error/5 hover:bg-error/10 border border-error/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-error font-headline font-medium text-sm">logical fallacy</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-error/50">Weight: 0.64</div>
+            </div>
+            <div class="bg-tertiary/5 hover:bg-tertiary/10 border border-tertiary/20 px-4 py-2 rounded-lg cursor-help transition-all group relative card-3d">
+              <span class="text-tertiary font-headline font-medium text-sm">cross-referenceable date</span>
+              <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-container-highest px-3 py-1 rounded text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-tertiary/50">Weight: 0.22</div>
+            </div>
+          </div>
+          <div class="mt-12 bg-surface-container-lowest rounded-xl p-6 border border-neutral-900">
+            <h4 class="font-headline text-xs font-bold text-neutral-500 uppercase tracking-widest mb-4">Neural Network Reasoning</h4>
+            <p id="real-summary" class="font-body text-sm leading-relaxed text-on-surface-variant italic min-h-[72px]">
+              Waiting for analysis...
+            </p>
+          </div>
+        </div>
+
+        <div id="real-card" class="col-span-12 lg:col-span-4 bg-surface-container-low rounded-2xl p-8 border border-neutral-800 flex flex-col items-center justify-center text-center relative group overflow-hidden card-3d">
+          <div class="absolute inset-0 bg-tertiary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div class="w-24 h-24 rounded-full bg-tertiary/20 flex items-center justify-center mb-6 relative">
+            <div class="absolute inset-0 rounded-full border-2 border-tertiary/30 animate-ping opacity-25"></div>
+            <span class="material-symbols-outlined text-4xl text-tertiary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+          </div>
+          <div class="px-4 py-1 bg-tertiary/20 rounded-full border border-tertiary/30 mb-4">
+            <span class="text-tertiary font-label font-bold text-sm tracking-widest uppercase">Factually Verified</span>
+          </div>
+          <h3 class="font-headline text-xl font-bold mb-2">Target Narrative: VERIFIED</h3>
+          <p id="real-note" class="text-neutral-500 text-sm mb-4">Historical scan shows 100% alignment with reputable news nodes and primary data sources.</p>
+          <p class="text-xs font-label uppercase tracking-[0.2em] text-primary mb-2">Authenticity Score</p>
+          <p id="real-score" class="text-3xl font-headline font-black text-white mb-4">0%</p>
+          <div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden mb-4">
+            <div id="real-bar" class="h-full bg-gradient-to-r from-tertiary to-secondary" style="width:0%"></div>
+          </div>
+          <div id="real-words" class="flex flex-wrap gap-2 justify-center"></div>
+        </div>
+      </div>
+
+      <div class="mt-10 w-full max-w-7xl text-left">
+        <h3 class="text-3xl font-headline font-bold mb-4 flex items-center gap-3">
+          Trending Scans
+          <span class="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] uppercase font-label">Real-time</span>
+        </h3>
+        <div id="slang-cards" class="flex flex-wrap gap-3 mb-6"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-surface-container-low p-6 rounded-2xl hover:bg-surface-container transition-all group cursor-pointer border border-white/5 card-3d">
+            <div class="w-full h-40 rounded-xl mb-4 bg-gradient-to-br from-neutral-900 to-neutral-700"></div>
+            <span class="text-[10px] font-label uppercase tracking-[0.2em] text-primary mb-2 block">Technology</span>
+            <h4 class="text-lg font-headline font-bold text-white mb-2 line-clamp-2">Neural link prototype leaked images: Verified fact or deepfake?</h4>
+            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-error animate-pulse"></div><span class="text-xs text-on-surface-variant">Analysis: 89% Likely AI Generated</span></div>
+          </div>
+          <div class="bg-surface-container-low p-6 rounded-2xl hover:bg-surface-container transition-all group cursor-pointer border border-white/5 card-3d">
+            <div class="w-full h-40 rounded-xl mb-4 bg-gradient-to-br from-neutral-900 to-neutral-700"></div>
+            <span class="text-[10px] font-label uppercase tracking-[0.2em] text-tertiary mb-2 block">Economy</span>
+            <h4 class="text-lg font-headline font-bold text-white mb-2 line-clamp-2">Market crash prediction by anonymous AI: Source investigation.</h4>
+            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-tertiary"></div><span class="text-xs text-on-surface-variant">Analysis: Trusted Institutional Data</span></div>
+          </div>
+          <div class="bg-surface-container-low p-6 rounded-2xl hover:bg-surface-container transition-all group cursor-pointer border border-white/5 card-3d">
+            <div class="w-full h-40 rounded-xl mb-4 bg-gradient-to-br from-neutral-900 to-neutral-700"></div>
+            <span class="text-[10px] font-label uppercase tracking-[0.2em] text-secondary mb-2 block">Health</span>
+            <h4 class="text-lg font-headline font-bold text-white mb-2 line-clamp-2">New study on longevity claims 200-year lifespan is possible.</h4>
+            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-error-dim"></div><span class="text-xs text-on-surface-variant">Analysis: Sensationalist Misinterpretation</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-neutral-950 border-t border-neutral-800/40 w-full py-12 mt-auto">
+    <div class="flex flex-col md:flex-row justify-between items-center px-8 gap-6 w-full max-w-7xl mx-auto">
+      <div class="flex flex-col items-center md:items-start">
+        <span class="text-lg font-black text-white font-headline mb-2">VERIFY.AI</span>
+        <span class="font-body text-xs uppercase tracking-widest text-neutral-500">© 2024 NEON-EDITORIAL FRAMEWORK. ALL RIGHTS RESERVED.</span>
+      </div>
+      <div class="flex gap-8">
+        <a class="font-body text-xs uppercase tracking-widest text-neutral-500 hover:text-violet-400 transition-colors" href="#">Privacy Protocol</a>
+        <a class="font-body text-xs uppercase tracking-widest text-neutral-500 hover:text-violet-400 transition-colors" href="#">Terms of Intelligence</a>
+        <a class="font-body text-xs uppercase tracking-widest text-neutral-500 hover:text-violet-400 transition-colors" href="#">Neural Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('particles-canvas');
+    const ctx = canvas.getContext('2d');
+    const particles = [];
+    const mouse = { x: null, y: null };
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.x;
+      mouse.y = e.y;
+    });
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedX = Math.random() * 0.5 - 0.25;
+        this.speedY = Math.random() * 0.5 - 0.25;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (mouse.x && mouse.y) {
+          const dx = mouse.x - this.x;
+          const dy = mouse.y - this.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 150) {
+            this.x -= dx * 0.01;
+            this.y -= dy * 0.01;
+          }
+        }
+        if (this.x > canvas.width) this.x = 0;
+        if (this.x < 0) this.x = canvas.width;
+        if (this.y > canvas.height) this.y = 0;
+        if (this.y < 0) this.y = canvas.height;
+      }
+      draw() {
+        ctx.fillStyle = 'rgba(204, 151, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      for (let i = 0; i < 60; i++) particles.push(new Particle());
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.update();
+        p.draw();
+      }
+      requestAnimationFrame(animateParticles);
+    }
+
+    const ui = {
+      backend: document.getElementById('backend-url'),
+      themeToggle: document.getElementById('theme-toggle'),
+      input: document.getElementById('news-input'),
+      status: document.getElementById('status-text'),
+      analyze: document.getElementById('analyze-btn'),
+      lang: document.getElementById('lang-select'),
+      auto: document.getElementById('auto-lang'),
+      fakeCard: document.getElementById('fake-card'),
+      realCard: document.getElementById('real-card'),
+      fakeSummary: document.getElementById('fake-summary'),
+      realSummary: document.getElementById('real-summary'),
+      fakeScore: document.getElementById('fake-score'),
+      realScore: document.getElementById('real-score'),
+      realNote: document.getElementById('real-note'),
+      fakeBar: document.getElementById('fake-bar'),
+      realBar: document.getElementById('real-bar'),
+      fakeWords: document.getElementById('fake-words'),
+      realWords: document.getElementById('real-words'),
+      integrityNeedle: document.getElementById('integrity-needle'),
+      integrityLabel: document.getElementById('integrity-label'),
+      integrityNote: document.getElementById('integrity-note'),
+      slangCards: document.getElementById('slang-cards')
+    };
+
+    const state = { backend: localStorage.getItem('verify_backend') || 'http://127.0.0.1:8000' };
+    ui.backend.value = state.backend;
+
+    ui.themeToggle.addEventListener('click', () => document.documentElement.classList.toggle('dark'));
+    ui.backend.addEventListener('change', () => {
+      state.backend = ui.backend.value.trim() || 'http://127.0.0.1:8000';
+      localStorage.setItem('verify_backend', state.backend);
+    });
+
+    ui.auto.addEventListener('change', () => {
+      if (ui.auto.checked) ui.lang.value = /[\u0900-\u097F]/.test(ui.input.value) ? 'hi' : 'en';
+    });
+    ui.input.addEventListener('input', () => {
+      if (ui.auto.checked) ui.lang.value = /[\u0900-\u097F]/.test(ui.input.value) ? 'hi' : 'en';
+    });
+    ui.input.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); analyze(); }
+    });
+    ui.analyze.addEventListener('click', analyze);
+
+    function setLoading(loading) {
+      ui.analyze.disabled = loading;
+      ui.analyze.textContent = loading ? 'Analyzing...' : 'Analyze News';
+      ui.status.textContent = loading ? 'Detecting lies in 3, 2, 1...' : 'Ready for scan';
+    }
+
+    async function analyze() {
+      const text = ui.input.value.trim();
+      if (!text) { ui.status.textContent = 'Please enter text first'; return; }
+      setLoading(true);
+      try {
+        const data = await callApi('/predict-with-lime', { text, language: ui.lang.value });
+        render(normalize(data), text);
+      } catch (_) {
+        try {
+          const data = await callApi('/predict', { text, language: ui.lang.value });
+          render(normalize(data), text);
+        } catch (err) {
+          ui.status.textContent = 'Server busy or unavailable';
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function callApi(endpoint, payload) {
+      const url = `${state.backend.replace(/\/$/, '')}${endpoint}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'Request failed');
+        return data;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    function normalize(data) {
+      let label = 'REAL';
+      if (typeof data.label === 'string') label = data.label.toUpperCase().includes('FAKE') ? 'FAKE' : 'REAL';
+      if (typeof data.prediction === 'number') label = data.prediction === 1 ? 'FAKE' : 'REAL';
+      const confidence = Math.max(0, Math.min(1, Number(data.confidence) || 0));
+      const fakeProb = label === 'FAKE' ? confidence : 1 - confidence;
+      const words = Object.entries((data.explanation && data.explanation.word_scores) || {})
+        .map(([w, s]) => ({ word: w, score: Number(s) || 0 }))
+        .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
+        .slice(0, 8);
+      return { label, confidence, fakeProb, words };
+    }
+
+    function render(result, source) {
+      const fakePct = Math.round(result.fakeProb * 100);
+      const realPct = 100 - fakePct;
+
+      ui.fakeScore.textContent = `${fakePct}%`;
+      ui.realScore.textContent = `${realPct}%`;
+      ui.fakeBar.style.width = `${fakePct}%`;
+      ui.realBar.style.width = `${realPct}%`;
+
+      ui.fakeCard.classList.remove('siren-red', 'opacity-60');
+      ui.realCard.classList.remove('opacity-60');
+      if (result.label === 'FAKE') {
+        ui.fakeCard.classList.add('siren-red');
+        ui.realCard.classList.add('opacity-60');
+        ui.fakeSummary.textContent = source;
+        ui.realSummary.textContent = 'Signals indicate likely misinformation in this content.';
+        ui.realNote.textContent = 'Historical scan shows reduced alignment with reputable news nodes and primary data sources.';
+        ui.status.textContent = `High risk detected (${Math.round(result.confidence * 100)}%)`;
+      } else {
+        ui.fakeCard.classList.add('opacity-60');
+        ui.realSummary.textContent = source;
+        ui.fakeSummary.textContent = 'No severe deception pattern observed in this input.';
+        ui.realNote.textContent = 'Historical scan shows strong alignment with reputable news nodes and primary data sources.';
+        ui.status.textContent = `Factually verified (${Math.round(result.confidence * 100)}%)`;
+      }
+
+      updateIntegrityGauge(fakePct);
+
+      ui.fakeWords.innerHTML = '';
+      ui.realWords.innerHTML = '';
+      if (!result.words.length) {
+        addChip(ui.fakeWords, 'No strong fake indicators', 'text-on-surface-variant border-white/15');
+        addChip(ui.realWords, 'No strong real indicators', 'text-on-surface-variant border-white/15');
+      } else {
+        for (const item of result.words) {
+          if (item.score >= 0) addChip(ui.fakeWords, `${item.word} (${item.score.toFixed(3)})`, 'text-error border-error/40');
+          else addChip(ui.realWords, `${item.word} (${item.score.toFixed(3)})`, 'text-tertiary border-tertiary/40');
+        }
+      }
+
+      renderSlang(result.label, Math.round(result.confidence * 100));
+    }
+
+    function updateIntegrityGauge(fakePct) {
+      const angle = 18 + (fakePct * 1.44);
+      ui.integrityNeedle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+      if (fakePct >= 80) {
+        ui.integrityLabel.textContent = 'CRITICAL';
+        ui.integrityNote.textContent = 'NARRATIVE RISK DETECTED';
+      } else if (fakePct >= 55) {
+        ui.integrityLabel.textContent = 'ELEVATED';
+        ui.integrityNote.textContent = 'INTEGRITY SIGNALS REQUIRE REVIEW';
+      } else if (fakePct >= 30) {
+        ui.integrityLabel.textContent = 'WATCH';
+        ui.integrityNote.textContent = 'SOME SIGNALS DESERVE FOLLOW-UP';
+      } else {
+        ui.integrityLabel.textContent = 'STABLE';
+        ui.integrityNote.textContent = 'NARRATIVE RISK REMAINS LOW';
+      }
+    }
+
+    function addChip(container, text, cls) {
+      const span = document.createElement('span');
+      span.className = `px-2 py-1 rounded-full border text-xs ${cls}`;
+      span.textContent = text;
+      container.appendChild(span);
+    }
+
+    function renderSlang(label, conf) {
+      ui.slangCards.innerHTML = '';
+      const rows = [];
+      if (label === 'FAKE' && conf > 90) rows.push(['Propaganda Level: Over 9000! 📈', 'text-error border-error/40 bg-error/10']);
+      if (conf >= 50 && conf <= 70) rows.push(['Sus... Proceed with caution. 🧐', 'text-on-surface-variant border-white/15 bg-surface-container-high']);
+      if (label === 'REAL' && conf > 90) rows.push(['Vibe Check Passed. No Cap. ✅', 'text-tertiary border-tertiary/40 bg-tertiary/10']);
+      if (!rows.length) rows.push([`Signal Strength: ${conf}%`, 'text-on-surface-variant border-white/15 bg-surface-container-high']);
+
+      for (const [text, cls] of rows) {
+        const card = document.createElement('span');
+        card.className = `px-3 py-1.5 rounded-full border text-xs ${cls}`;
+        card.textContent = text;
+        ui.slangCards.appendChild(card);
+      }
+    }
+
+    initParticles();
+    animateParticles();
+  </script>
+</body>
+</html>
