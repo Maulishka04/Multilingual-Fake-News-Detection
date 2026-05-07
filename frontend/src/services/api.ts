@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import { BACKEND_URL, ERROR_MESSAGES, type LanguageCode } from "../utils/constants";
+import { BACKEND_URL, ERROR_MESSAGES, type LanguageCode, type ModelType } from "../utils/constants";
 
 export interface ExplanationPayload {
   positive_words: string[];
@@ -12,6 +12,36 @@ export interface PredictionResponse {
   prediction: number;
   confidence: number;
   explanation: ExplanationPayload;
+  model?: ModelType;
+  inference_time_ms?: number | null;
+}
+
+export interface ModelInfo {
+  name: ModelType;
+  loaded: boolean;
+  description: string;
+  accuracy: number;
+  f1_score: number;
+  inference_time_ms: number;
+  best_for: string;
+  supports_lime: boolean;
+}
+
+export interface AvailableModelsResponse {
+  models: ModelInfo[];
+}
+
+export interface CompareModelResult {
+  prediction: number;
+  confidence: number;
+  inference_time_ms?: number | null;
+}
+
+export interface CompareResponse {
+  text_preview: string;
+  results: Partial<Record<ModelType, CompareModelResult>>;
+  errors: Partial<Record<ModelType, string>>;
+  agreement: boolean | null;
 }
 
 interface PredictPayload {
@@ -28,7 +58,7 @@ const emptyExplanation: ExplanationPayload = {
 
 const apiClient = axios.create({
   baseURL: BACKEND_URL,
-  timeout: 30_000,
+  timeout: 60_000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -55,6 +85,8 @@ const getFriendlyErrorMessage = (error: unknown): string => {
 const normalizePredictionResponse = (response: PredictionResponse): PredictionResponse => ({
   prediction: Number(response.prediction),
   confidence: Number(response.confidence),
+  model: response.model,
+  inference_time_ms: response.inference_time_ms ?? null,
   explanation: {
     positive_words: response.explanation?.positive_words ?? emptyExplanation.positive_words,
     negative_words: response.explanation?.negative_words ?? emptyExplanation.negative_words,
@@ -63,10 +95,14 @@ const normalizePredictionResponse = (response: PredictionResponse): PredictionRe
   },
 });
 
-export const predictText = async (text: string, language: LanguageCode): Promise<PredictionResponse> => {
+export const predictText = async (
+  text: string,
+  language: LanguageCode,
+  model: ModelType = "svm"
+): Promise<PredictionResponse> => {
   try {
     const payload: PredictPayload = { text, language };
-    const response = await apiClient.post<PredictionResponse>("/predict", payload);
+    const response = await apiClient.post<PredictionResponse>(`/predict?model=${model}`, payload);
     return normalizePredictionResponse(response.data);
   } catch (error) {
     throw new Error(getFriendlyErrorMessage(error));
@@ -78,6 +114,34 @@ export const predictTextWithLime = async (text: string, language: LanguageCode):
     const payload: PredictPayload = { text, language };
     const response = await apiClient.post<PredictionResponse>("/predict-with-lime", payload);
     return normalizePredictionResponse(response.data);
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error));
+  }
+};
+
+export const compareModels = async (text: string, language: LanguageCode): Promise<CompareResponse> => {
+  try {
+    const payload: PredictPayload = { text, language };
+    const response = await apiClient.post<CompareResponse>("/compare", payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error));
+  }
+};
+
+export const fetchAvailableModels = async (): Promise<AvailableModelsResponse> => {
+  try {
+    const response = await apiClient.get<AvailableModelsResponse>("/available-models");
+    return response.data;
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error));
+  }
+};
+
+export const fetchModelInfo = async (modelName: ModelType): Promise<ModelInfo> => {
+  try {
+    const response = await apiClient.get<ModelInfo>(`/model-info/${modelName}`);
+    return response.data;
   } catch (error) {
     throw new Error(getFriendlyErrorMessage(error));
   }

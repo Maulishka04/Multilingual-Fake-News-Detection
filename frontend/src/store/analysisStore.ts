@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import { ANALYSIS_LIMITS, STORAGE_KEYS, type LanguageCode } from "../utils/constants";
+import { ANALYSIS_LIMITS, STORAGE_KEYS, type LanguageCode, type ModelType } from "../utils/constants";
 import type { PredictionResponse } from "../services/api";
 
 export interface AnalysisRecord extends PredictionResponse {
   id: string;
   text: string;
   language: LanguageCode;
+  model: ModelType;
+  inference_time_ms: number | null;
   createdAt: string;
 }
 

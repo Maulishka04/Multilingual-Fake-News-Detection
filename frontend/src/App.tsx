@@ -12,7 +12,7 @@ import { useAnalysis } from "./hooks/useAnalysis";
 import { useHistory } from "./hooks/useHistory";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAnalysisStore, type AnalysisRecord } from "./store/analysisStore";
-import { type LanguageMode } from "./utils/constants";
+import { type LanguageMode, type ModelType } from "./utils/constants";
 import { copyTextToClipboard, exportToCsv, exportToJson } from "./utils/exporters";
 
 const toCsvRows = (analyses: AnalysisRecord[]): Array<Record<string, string | number>> =>
@@ -20,8 +20,10 @@ const toCsvRows = (analyses: AnalysisRecord[]): Array<Record<string, string | nu
     id: item.id,
     text: item.text,
     language: item.language,
+    model: item.model ?? "svm",
     prediction: item.prediction,
     confidence: Number((item.confidence * 100).toFixed(2)),
+    inference_time_ms: item.inference_time_ms ?? "",
     createdAt: item.createdAt,
     explanation: item.explanation.explanation_text,
   }));
@@ -29,6 +31,7 @@ const toCsvRows = (analyses: AnalysisRecord[]): Array<Record<string, string | nu
 const App = (): JSX.Element => {
   const [inputText, setInputText] = useState("");
   const [languageMode, setLanguageMode] = useState<LanguageMode>("auto");
+  const [modelType, setModelType] = useState<ModelType>("svm");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const loadHistoryFromStorage = useAnalysisStore((state) => state.loadHistoryFromStorage);
@@ -43,8 +46,8 @@ const App = (): JSX.Element => {
   }, [loadHistoryFromStorage]);
 
   const handleSubmit = useCallback(async () => {
-    await predictText(inputText, languageMode);
-  }, [inputText, languageMode, predictText]);
+    await predictText(inputText, languageMode, modelType);
+  }, [inputText, languageMode, modelType, predictText]);
 
   const handleClear = useCallback(() => {
     setInputText("");
@@ -175,8 +178,10 @@ const App = (): JSX.Element => {
             isLoading={isLoading}
             error={error}
             languageMode={languageMode}
+            modelType={modelType}
             onTextChange={setInputText}
             onLanguageModeChange={setLanguageMode}
+            onModelTypeChange={setModelType}
             onSubmit={handleSubmit}
             onClear={handleClear}
           />
@@ -198,7 +203,7 @@ const App = (): JSX.Element => {
       </main>
 
       <footer className="mt-6 rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 text-xs text-text-muted shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-        Backend: localhost:8000. This UI uses /predict-with-lime with /predict fallback for resilience.
+        Backend: localhost:8000. Models: SVM (TF-IDF, ~85% accuracy) and mBERT (91.15% accuracy). SVM uses /predict-with-lime; mBERT uses /predict?model=mbert.
       </footer>
     </div>
   );

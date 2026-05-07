@@ -101,6 +101,7 @@ models/**/*.pkl
 *.pt
 *.bin
 models/**/*.safetensors
+fake_news_backend/models/mbert/
 
 # 🔐 USER DATA
 data/user_*

@@ -1,14 +1,26 @@
-from pathlib import Path
 import pickle
-from typing import Literal
+import time
+from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from config import (
+    APP_NAME,
+    MBERT_DIR,
+    MBERT_MAX_LENGTH,
+    MBERT_MODEL_NAME,
+    MODEL_METADATA,
+    SVM_MODEL_PATH,
+    SVM_MODEL_PATH_LEGACY,
+    SVM_VECTORIZER_PATH,
+    SVM_VECTORIZER_PATH_LEGACY,
+)
 from explainers import LIMEExplainer
+from models.mbert_inference import MBertInference
 
-app = FastAPI(title="Fake News Backend")
+app = FastAPI(title=APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,12 +31,19 @@ app.add_middleware(
 )
 
 
-MODEL = None
-VECTORIZER = None
+# ---------------------------------------------------------------------------
+# Global model state
+# ---------------------------------------------------------------------------
+
+SVM_MODEL = None
+SVM_VECTORIZER = None
 LIME_EXPLAINER = None
-MODELS_DIR = Path(__file__).parent / "models"
-MODEL_PATH = MODELS_DIR / "linear_svc_calibrated_tfidf.pkl"
-VECTORIZER_PATH = MODELS_DIR / "tfidf_vectorizer.pkl"
+MBERT: Optional[MBertInference] = None
+
+
+# ---------------------------------------------------------------------------
+# Request / Response schemas
+# ---------------------------------------------------------------------------
 
 
 class PredictRequest(BaseModel):
@@ -32,64 +51,148 @@ class PredictRequest(BaseModel):
     language: Literal["en", "hi"]
 
 
+class CompareRequest(BaseModel):
+    text: str
+    language: Literal["en", "hi"]
+
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
+
+def _resolve_svm_paths():
+    """Return (model_path, vectorizer_path) preferring the structured svm/ subfolder."""
+    if SVM_MODEL_PATH.exists() and SVM_VECTORIZER_PATH.exists():
+        return SVM_MODEL_PATH, SVM_VECTORIZER_PATH
+    return SVM_MODEL_PATH_LEGACY, SVM_VECTORIZER_PATH_LEGACY
+
+
 @app.on_event("startup")
 def load_artifacts() -> None:
-    global MODEL, VECTORIZER, LIME_EXPLAINER
+    global SVM_MODEL, SVM_VECTORIZER, LIME_EXPLAINER, MBERT
 
+    # --- SVM ---
+    model_path, vectorizer_path = _resolve_svm_paths()
     try:
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(f"Model file not found: {MODEL_PATH}")
-        if not VECTORIZER_PATH.exists():
-            raise FileNotFoundError(f"Vectorizer file not found: {VECTORIZER_PATH}")
+        if not model_path.exists():
+            raise FileNotFoundError(f"SVM model file not found: {model_path}")
+        if not vectorizer_path.exists():
+            raise FileNotFoundError(f"Vectorizer file not found: {vectorizer_path}")
 
-        with MODEL_PATH.open("rb") as model_file:
-            MODEL = pickle.load(model_file)
-        with VECTORIZER_PATH.open("rb") as vectorizer_file:
-            VECTORIZER = pickle.load(vectorizer_file)
+        with model_path.open("rb") as f:
+            SVM_MODEL = pickle.load(f)
+        with vectorizer_path.open("rb") as f:
+            SVM_VECTORIZER = pickle.load(f)
 
-        LIME_EXPLAINER = LIMEExplainer(MODEL, VECTORIZER)
-        print("LIME explainer initialized")
-
-        print("Model and vectorizer loaded successfully.")
+        LIME_EXPLAINER = LIMEExplainer(SVM_MODEL, SVM_VECTORIZER)
+        print("SVM model, vectorizer, and LIME explainer loaded successfully.")
     except Exception as exc:
-        MODEL = None
-        VECTORIZER = None
+        SVM_MODEL = None
+        SVM_VECTORIZER = None
         LIME_EXPLAINER = None
-        print(f"Error loading model/vectorizer: {exc}")
+        print(f"Warning: SVM artifacts could not be loaded: {exc}")
+
+    # --- mBERT ---
+    try:
+        mbert_instance = MBertInference(
+            model_dir=MBERT_DIR,
+            fallback_model_name=MBERT_MODEL_NAME,
+            max_length=MBERT_MAX_LENGTH,
+        )
+        mbert_instance.load()
+        MBERT = mbert_instance
+        print("mBERT model loaded successfully.")
+    except Exception as exc:
+        MBERT = None
+        print(f"Warning: mBERT model could not be loaded: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+
+def _run_svm_predict(cleaned_text: str):
+    """Run SVM inference and return (predicted_label, confidence)."""
+    if SVM_MODEL is None or SVM_VECTORIZER is None:
+        raise HTTPException(status_code=503, detail="SVM model artifacts are not loaded.")
+    features = SVM_VECTORIZER.transform([cleaned_text])
+    predicted_label = int(SVM_MODEL.predict(features)[0])
+    confidence = 0.0
+    if hasattr(SVM_MODEL, "predict_proba"):
+        probabilities = SVM_MODEL.predict_proba(features)[0]
+        confidence = float(max(probabilities))
+    return predicted_label, confidence
+
+
+def _run_mbert_predict(cleaned_text: str):
+    """Run mBERT inference and return the result dict."""
+    if MBERT is None:
+        raise HTTPException(status_code=503, detail="mBERT model is not loaded.")
+    try:
+        return MBERT.predict(cleaned_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Core endpoints
+# ---------------------------------------------------------------------------
 
 
 @app.get("/")
 def root():
-    return {"message": "Backend is running"}
+    return {"message": "Fake News Backend is running"}
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "svm_loaded": SVM_MODEL is not None,
+        "mbert_loaded": MBERT is not None and MBERT.is_loaded(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Prediction endpoints
+# ---------------------------------------------------------------------------
 
 
 @app.post("/predict")
-def predict(payload: PredictRequest):
+def predict(payload: PredictRequest, model: str = "svm"):
+    """Predict whether the news text is fake.
+
+    Query parameters:
+        model: ``"svm"`` (default) or ``"mbert"``
+    """
+    model = model.lower()
+    if model not in {"svm", "mbert"}:
+        raise HTTPException(status_code=400, detail=f"Unknown model '{model}'. Use 'svm' or 'mbert'.")
+
+    cleaned_text = LIMEExplainer.clean_text(payload.text)
+    if not cleaned_text:
+        raise HTTPException(status_code=400, detail="Text is empty after cleaning.")
+    if len(cleaned_text) < 3:
+        raise HTTPException(status_code=400, detail="Text is too short for prediction.")
+
     try:
-        if MODEL is None or VECTORIZER is None:
-            raise HTTPException(status_code=500, detail="Model artifacts are not loaded.")
+        if model == "mbert":
+            result = _run_mbert_predict(cleaned_text)
+            return {
+                "prediction": result["prediction"],
+                "confidence": result["confidence"],
+                "model": "mbert",
+                "inference_time_ms": result.get("inference_time_ms"),
+            }
 
-        cleaned_text = LIMEExplainer.clean_text(payload.text)
-        if not cleaned_text:
-            raise HTTPException(status_code=400, detail="Text is empty after cleaning.")
-        if len(cleaned_text) < 3:
-            raise HTTPException(status_code=400, detail="Text is too short for prediction.")
+        # SVM (default)
+        predicted_label, confidence = _run_svm_predict(cleaned_text)
+        return {"prediction": predicted_label, "confidence": confidence, "model": "svm"}
 
-        text_features = VECTORIZER.transform([cleaned_text])
-        predicted_label = int(MODEL.predict(text_features)[0])
-
-        if hasattr(MODEL, "predict_proba"):
-            probabilities = MODEL.predict_proba(text_features)[0]
-            confidence = float(max(probabilities))
-        else:
-            confidence = 0.0
-
-        return {"prediction": predicted_label, "confidence": confidence}
     except HTTPException:
         raise
     except Exception as exc:
@@ -98,11 +201,12 @@ def predict(payload: PredictRequest):
 
 @app.post("/predict-with-lime")
 def predict_with_lime(payload: PredictRequest):
+    """SVM prediction with LIME explanation (SVM only; LIME not supported for mBERT)."""
     try:
-        if MODEL is None or VECTORIZER is None:
-            raise HTTPException(status_code=500, detail="Model artifacts are not loaded.")
+        if SVM_MODEL is None or SVM_VECTORIZER is None:
+            raise HTTPException(status_code=503, detail="SVM model artifacts are not loaded.")
         if LIME_EXPLAINER is None:
-            raise HTTPException(status_code=500, detail="LIME explainer is not initialized.")
+            raise HTTPException(status_code=503, detail="LIME explainer is not initialized.")
 
         cleaned_text = LIMEExplainer.clean_text(payload.text)
         if not cleaned_text:
@@ -110,13 +214,13 @@ def predict_with_lime(payload: PredictRequest):
         if len(cleaned_text) < 3:
             raise HTTPException(status_code=400, detail="Text is too short for prediction and explanation.")
 
-        text_features = VECTORIZER.transform([cleaned_text])
-        predicted_label = int(MODEL.predict(text_features)[0])
+        features = SVM_VECTORIZER.transform([cleaned_text])
+        predicted_label = int(SVM_MODEL.predict(features)[0])
 
-        if not hasattr(MODEL, "predict_proba"):
+        if not hasattr(SVM_MODEL, "predict_proba"):
             raise HTTPException(status_code=500, detail="Loaded model does not support probability output.")
 
-        probabilities = MODEL.predict_proba(text_features)[0]
+        probabilities = SVM_MODEL.predict_proba(features)[0]
         confidence = float(max(probabilities))
 
         try:
@@ -129,12 +233,127 @@ def predict_with_lime(payload: PredictRequest):
         return {
             "prediction": predicted_label,
             "confidence": confidence,
+            "model": "svm",
             "explanation": explanation,
         }
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Prediction with LIME failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Comparison endpoint
+# ---------------------------------------------------------------------------
+
+
+@app.post("/compare")
+def compare_models(payload: CompareRequest):
+    """Run the same text through both SVM and mBERT and return a side-by-side comparison."""
+    cleaned_text = LIMEExplainer.clean_text(payload.text)
+    if not cleaned_text:
+        raise HTTPException(status_code=400, detail="Text is empty after cleaning.")
+    if len(cleaned_text) < 3:
+        raise HTTPException(status_code=400, detail="Text is too short for comparison.")
+
+    results = {}
+    errors = {}
+
+    # SVM
+    try:
+        if SVM_MODEL is None or SVM_VECTORIZER is None:
+            errors["svm"] = "SVM model not loaded"
+        else:
+            t0 = time.perf_counter()
+            predicted_label, confidence = _run_svm_predict(cleaned_text)
+            elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+            results["svm"] = {
+                "prediction": predicted_label,
+                "confidence": confidence,
+                "inference_time_ms": elapsed_ms,
+            }
+    except Exception as exc:
+        errors["svm"] = str(exc)
+
+    # mBERT
+    try:
+        if MBERT is None or not MBERT.is_loaded():
+            errors["mbert"] = "mBERT model not loaded"
+        else:
+            mbert_result = MBERT.predict(cleaned_text)
+            results["mbert"] = {
+                "prediction": mbert_result["prediction"],
+                "confidence": mbert_result["confidence"],
+                "inference_time_ms": mbert_result.get("inference_time_ms"),
+            }
+    except Exception as exc:
+        errors["mbert"] = str(exc)
+
+    if not results:
+        raise HTTPException(status_code=503, detail="No models are available for comparison.")
+
+    agreement = None
+    if "svm" in results and "mbert" in results:
+        agreement = results["svm"]["prediction"] == results["mbert"]["prediction"]
+
+    return {
+        "text_preview": cleaned_text[:200],
+        "results": results,
+        "errors": errors,
+        "agreement": agreement,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Model info endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/available-models")
+def available_models():
+    """Return a list of available models with their loading status and metadata."""
+    models = []
+    for model_name, meta in MODEL_METADATA.items():
+        loaded = False
+        if model_name == "svm":
+            loaded = SVM_MODEL is not None
+        elif model_name == "mbert":
+            loaded = MBERT is not None and MBERT.is_loaded()
+        models.append({
+            **meta,
+            "name": model_name,
+            "loaded": loaded,
+        })
+    return {"models": models}
+
+
+@app.get("/model-info/{model_name}")
+def model_info(model_name: str):
+    """Return detailed information about a specific model."""
+    model_name = model_name.lower()
+    if model_name not in MODEL_METADATA:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model '{model_name}' not found. Available: {list(MODEL_METADATA.keys())}",
+        )
+
+    meta = MODEL_METADATA[model_name]
+    loaded = False
+    extra: dict = {}
+
+    if model_name == "svm":
+        loaded = SVM_MODEL is not None
+    elif model_name == "mbert":
+        loaded = MBERT is not None and MBERT.is_loaded()
+        if MBERT is not None:
+            extra["using_local_weights"] = MBERT.is_local_model()
+
+    return {
+        **meta,
+        "name": model_name,
+        "loaded": loaded,
+        **extra,
+    }
 
 
 if __name__ == "__main__":

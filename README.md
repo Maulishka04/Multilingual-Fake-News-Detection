@@ -128,19 +128,25 @@ Multilingual Fake News Detection/
 │   ├── 04_model_training.ipynb        # TF-IDF training (4 models) + evaluation
 │   └── 05_explainable_ai_xai.ipynb    # SHAP + LIME explainability analysis
 │
-├── 📂 fake_news_backend/               # Backend API services (Phase 4)
-│   ├── main.py                        # FastAPI application (⏳ Under development)
-│   ├── config.py                      # Configuration & constants
-│   ├── explainers.py                  # LIME explainer utilities
-│   ├── requirements.txt                # Backend dependencies
+├── 📂 fake_news_backend/               # Backend API services ✅
+│   ├── main.py                        # FastAPI app (SVM + mBERT dual-model)
+│   ├── config.py                      # Configuration, paths, model metadata
+│   ├── explainers.py                  # LIME explainer utilities (SVM)
+│   ├── requirements.txt               # Backend dependencies (incl. transformers)
 │   ├── check_models.py                # Model validation script
 │   ├── regenerate_models.py           # Model regeneration utilities
-│   └── 📂 models/                     # Model artifacts (⚠️ NOT pushed)
-│       ├── tfidf_vectorizer.pkl
-│       ├── logistic_regression_tfidf.pkl
-│       ├── linear_svc_calibrated_tfidf.pkl
-│       ├── naive_bayes_tfidf.pkl
-│       └── passive_aggressive_tfidf.pkl
+│   ├── 📂 models/                     # Model artifacts (⚠️ NOT pushed)
+│   │   ├── mbert_inference.py         # MBertInference class (NEW)
+│   │   ├── svm/                       # SVM model artifacts
+│   │   │   ├── linear_svc_calibrated_tfidf.pkl
+│   │   │   └── tfidf_vectorizer.pkl
+│   │   └── mbert/                     # Fine-tuned mBERT weights (NEW)
+│   │       ├── config.json
+│   │       ├── pytorch_model.bin
+│   │       ├── tokenizer.json
+│   │       └── tokenizer_config.json
+│   └── 📂 routers/                    # API routers (NEW)
+│       └── mbert_router.py
 │
 ├── 📂 frontend/                        # React + Vite Frontend (Phase 5) ⏳
 │   ├── src/
@@ -172,7 +178,16 @@ Multilingual Fake News Detection/
 │       ├── 08_shap_vs_lime_comparison.csv
 │       └── XAI_ANALYSIS_SUMMARY_REPORT.txt
 │
-├── 📂 scripts/                         # Utility scripts (reserved for future use)
+├── 📂 scripts/                         # Utility scripts ✅
+│   ├── download_mbert_models.py       # Download mBERT from Hugging Face (NEW)
+│   ├── setup_models.sh                # Automated model setup (NEW)
+│   ├── train_mbert_local.py           # Local mBERT fine-tuning (NEW)
+│   ├── retrain_models.py              # Batch retrain SVM + mBERT (NEW)
+│   └── validate_models.py             # Validate model artifacts (NEW)
+│
+├── 📂 tests/                           # Unit & integration tests ✅
+│   ├── test_mbert_inference.py        # mBERT inference tests (NEW)
+│   └── test_model_comparison.py       # API comparison tests (NEW)
 │
 └── 📂 news-detective/                  # Additional frontend resources (Phase 5)
     ├── index.html
@@ -347,20 +362,24 @@ streamlit run app.py
 
 ---
 
-### 🔌 6. Backend API (Phase 4) ⏳
-
-**Work in Progress** - Under Development!
+### 🔌 6. Backend API ✅
 
 Start the FastAPI server:
 ```bash
 cd fake_news_backend
-python main.py
+uvicorn main:app --reload
 ```
 
-**API Endpoints (Planned):**
-- `POST /predict` - Basic prediction
-- `POST /predict-with-lime` - Prediction + explanation
+**API Endpoints:**
+- `POST /predict?model=svm` - SVM prediction (default)
+- `POST /predict?model=mbert` - mBERT prediction
+- `POST /predict-with-lime` - SVM prediction + LIME explanation
+- `POST /compare` - Side-by-side SVM vs mBERT comparison
+- `GET /available-models` - List all models with status
+- `GET /model-info/{name}` - Detailed model information
 - `GET /health` - Health check
+
+See [API_GUIDE.md](API_GUIDE.md) for full documentation with examples.
 
 ---
 
@@ -382,26 +401,26 @@ python main.py
       • Public access enabled
 
 🔄 Phase 3: Model Training & Explainability
-   └─ Status: IN PROGRESS (~15-20 minutes)
+   └─ Status: IN PROGRESS
       ✅ TF-IDF based models (LR, SVM, NB, PA)
       ✅ SHAP global explanations
       ✅ LIME local explanations
-      🔄 DistilBERT embeddings (fine-tuning)
+      ✅ mBERT fine-tuned (91.15% accuracy — 81,963 samples)
       🔄 Model comparison analysis
 
-⏳ Phase 4: API Development
-   └─ Status: PLANNED
-      • FastAPI backend setup
-      • LIME integration for explanations
-      • Real-time prediction endpoints
-      • Health checks & error handling
+✅ Phase 4: API Development
+   └─ Status: COMPLETE
+      ✅ FastAPI backend with dual-model support (SVM + mBERT)
+      ✅ LIME integration (SVM) and mBERT inference pipeline
+      ✅ /predict, /predict-with-lime, /compare, /available-models, /model-info endpoints
+      ✅ Model selection via query parameter (?model=svm or ?model=mbert)
 
-⏳ Phase 5: Frontend Integration
-   └─ Status: PLANNED
-      • React + Vite frontend
-      • Streamlit dashboard
-      • Real-time UI updates
-      • Multi-language support
+✅ Phase 5: Frontend Integration
+   └─ Status: COMPLETE
+      ✅ React + Vite + Tailwind CSS frontend
+      ✅ Model selection dropdown (SVM vs mBERT)
+      ✅ Real-time predictions with history tracking
+      ✅ Multi-language support (Hindi + English + auto-detect)
 
 ⏳ Phase 6: Deployment
    └─ Status: PLANNED
@@ -410,6 +429,39 @@ python main.py
       • CI/CD pipeline setup
       • Monitoring & logging
 ```
+
+---
+
+## 🤖 mBERT Integration
+
+The system now supports **two models** via the API:
+
+| Model | Accuracy | F1-Score | Inference Time | Best For |
+|-------|----------|----------|----------------|----------|
+| **SVM (TF-IDF)** | ~85% | ~0.81 | ~100 ms | Speed + Explainability |
+| **mBERT** | **91.15%** | **0.8790** | ~500 ms | Accuracy + Context |
+
+### Quick Start
+
+```bash
+# 1. Install dependencies (includes transformers + torch)
+pip install -r fake_news_backend/requirements.txt
+
+# 2. Download or train the mBERT model
+python scripts/train_mbert_local.py \
+  --dataset path/to/fake_news_dataset.csv \
+  --output-dir fake_news_backend/models/mbert
+
+# 3. Start the backend
+cd fake_news_backend && uvicorn main:app --reload
+
+# 4. Predict with mBERT
+curl -X POST "http://localhost:8000/predict?model=mbert" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Scientists discover water on Mars", "language": "en"}'
+```
+
+See [MBERT_INTEGRATION.md](MBERT_INTEGRATION.md), [MODELS.md](MODELS.md), and [API_GUIDE.md](API_GUIDE.md) for full documentation.
 
 ---
 
