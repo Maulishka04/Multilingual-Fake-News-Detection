@@ -60,10 +60,8 @@ htmlcov/
 
 # Project artifacts: keep repository code-only
 dataset/
-models/*.pkl
-models/**/*.pkl
-fake_news_backend/models/mbert_model/
-fake_news_backend/models/*.pkl
+# Model artifacts are managed via Git LFS (see .gitattributes)
+# fake_news_backend/models/ and models/ are tracked by Git LFS when available
 outputs/
 
 # Large tabular/text datasets
@@ -96,9 +94,9 @@ config/secrets/
 *.sqlite3
 data/private/
 
-# 🔐 LARGE MODELS (already in .gitignore)
-models/*.pkl
-models/**/*.pkl
+# 🔐 LARGE MODELS
+# Model artifacts are tracked via Git LFS using .gitattributes.
+# Do NOT revert these lines unless you intend to remove Git LFS tracking.
 *.pth
 *.pt
 *.bin
