@@ -53,16 +53,16 @@ export const HistorySidebar = ({
   return (
     <>
       <aside
-        className={`fixed inset-y-0 right-0 z-40 w-full max-w-sm transform rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60 md:static md:z-auto md:max-w-none md:translate-x-0 ${
+        className={`fixed inset-y-0 right-0 z-40 w-full max-w-sm transform rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60 md:static md:z-auto md:max-w-none md:translate-x-0 ${
           isMobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
         aria-label="Analysis history"
       >
         <header className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">History</h2>
+          <h2 className="text-lg font-semibold font-display text-[var(--color-text-primary)]">History</h2>
           <button
             type="button"
-            className="rounded-lg border border-white/20 p-2 text-text-primary md:hidden"
+            className="rounded-lg border border-[var(--color-border)] p-2 text-[var(--color-text-primary)] md:hidden"
             onClick={onCloseMobile}
             aria-label="Close history sidebar"
           >
@@ -78,12 +78,12 @@ export const HistorySidebar = ({
             id="history-search"
             type="search"
             placeholder="Search text..."
-            className="w-full rounded-lg border border-white/20 bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/60"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
           <select
-            className="w-full rounded-lg border border-white/20 bg-surface px-3 py-2 text-sm text-text-primary"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             value={filter}
             onChange={(event) => setFilter(event.target.value as "all" | "fake" | "real")}
             aria-label="Filter history by prediction"
@@ -97,21 +97,21 @@ export const HistorySidebar = ({
         <div className="mb-3 flex flex-wrap gap-2 text-xs">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-white/20 px-2 py-1 text-text-primary hover:bg-white/10"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 text-[var(--color-text-primary)] hover:bg-[var(--color-primary)]/10 transition duration-300"
             onClick={exportAllJson}
           >
             <FiFileText /> JSON
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-white/20 px-2 py-1 text-text-primary hover:bg-white/10"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 text-[var(--color-text-primary)] hover:bg-[var(--color-primary)]/10 transition duration-300"
             onClick={exportAllCsv}
           >
             <FiDownload /> CSV
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-neon-danger/50 px-2 py-1 text-neon-danger hover:bg-neon-danger/10"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-danger)]/50 px-2 py-1 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition duration-300"
             onClick={() => setShowConfirm(true)}
           >
             <FiTrash2 /> Clear all
@@ -120,12 +120,12 @@ export const HistorySidebar = ({
 
         <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1 md:max-h-[70vh]">
           {filteredHistory.length === 0 ? (
-            <p className="rounded-lg border border-white/10 bg-surface p-3 text-sm text-text-muted">No history</p>
+            <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-3 text-sm text-[var(--color-text-secondary)]">No history</p>
           ) : (
             filteredHistory.map((item) => (
               <article
                 key={item.id}
-                className="group cursor-pointer rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60"
+                className="group cursor-pointer rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60 hover:shadow-xl"
                 onClick={() => onSelectAnalysis(item)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -138,12 +138,12 @@ export const HistorySidebar = ({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm text-text-primary">{truncateText(item.text, 50)}</p>
-                    <p className="mt-1 text-xs text-text-muted">{formatDateTime(item.createdAt)}</p>
+                    <p className="text-sm text-[var(--color-text-primary)]">{truncateText(item.text, 50)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDateTime(item.createdAt)}</p>
                   </div>
                   <button
                     type="button"
-                    className="invisible rounded-md border border-white/20 p-1 text-text-muted group-hover:visible"
+                    className="invisible rounded-md border border-[var(--color-border)] p-1 text-[var(--color-text-secondary)] group-hover:visible"
                     onClick={(event) => {
                       event.stopPropagation();
                       deleteAnalysis(item.id);
@@ -155,10 +155,10 @@ export const HistorySidebar = ({
                   </button>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className={item.prediction === 1 ? "text-neon-danger" : "text-neon-success"}>
+                  <span className={item.prediction === 1 ? "text-[var(--color-danger)] font-semibold" : "text-[var(--color-success)] font-semibold"}>
                     {item.prediction === 1 ? "Fake" : "Real"}
                   </span>
-                  <span className="text-text-muted">{Math.round(item.confidence * 100)}%</span>
+                  <span className="text-[var(--color-text-secondary)]">{Math.round(item.confidence * 100)}%</span>
                 </div>
               </article>
             ))
@@ -168,28 +168,28 @@ export const HistorySidebar = ({
 
       {isMobileOpen ? (
         <div
-          className="fixed inset-0 z-30 bg-black/70 md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
       ) : null}
 
       {showConfirm ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-white/20 bg-panel p-4">
-            <h3 className="text-lg font-semibold text-text-primary">Clear history?</h3>
-            <p className="mt-2 text-sm text-text-muted">This will remove all saved analyses.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Clear history?</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">This will remove all saved analyses.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-white/20 px-3 py-2 text-sm text-text-primary"
+                className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-primary)] transition duration-300"
                 onClick={() => setShowConfirm(false)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-neon-danger/60 px-3 py-2 text-sm text-neon-danger"
+                className="rounded-lg border border-[var(--color-danger)]/60 px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition duration-300"
                 onClick={clearAllWithConfirmation}
               >
                 Clear all

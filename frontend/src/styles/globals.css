@@ -1,17 +1,19 @@
+@import './colors.css';
+@import './typography.css';
+@import './animations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  @apply min-h-screen bg-background text-text-primary antialiased;
-  background-image:
-    radial-gradient(circle at 8% 20%, rgba(0, 217, 255, 0.13), transparent 28%),
-    radial-gradient(circle at 90% 10%, rgba(215, 0, 255, 0.12), transparent 32%),
-    linear-gradient(145deg, rgba(10, 14, 39, 0.95), rgba(0, 0, 0, 1));
+  @apply min-h-screen text-text-primary antialiased;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 #root {

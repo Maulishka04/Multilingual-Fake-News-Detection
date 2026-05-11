@@ -1,0 +1,44 @@
+:root {
+  /* Primary Colors */
+  --color-primary: #00A19B;
+  --color-secondary: #E4DDD3;
+  --color-accent: #CCDA47;
+  
+  /* Status Colors */
+  --color-success: #00A19B;
+  --Color-danger: #990011;
+  --color-warning: #CCDA47;
+  
+  /* Neutral Colors */
+  --color-bg-primary: #FCF6F5;
+  --color-bg-secondary: #E4DDD3;
+  --color-text-primary: #0A4A3C;
+  --color-text-secondary: #C87740;
+  
+  /* Semantic Tokens */
+  --color-border: rgba(0, 161, 155, 0.3);
+  --color-overlay: rgba(0, 0, 0, 0.4);
+  --color-real-news: #00A19B;
+  --color-fake-news: #990011;
+}
+
+.welcome-gradient {
+  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+}
+
+.bg-app {
+  background-color: var(--color-bg-primary);
+}
+
+.card-bg {
+  background-color: var(--color-bg-secondary);
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #008B84;
+}

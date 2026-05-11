@@ -1,65 +1,37 @@
 .neon-card {
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #11162e;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
   padding: 1.25rem;
 }
 
 .neon-button {
   border-radius: 10px;
-  border: 1px solid rgba(0, 217, 255, 0.6);
-  background: rgba(0, 217, 255, 0.1);
-  color: #00d9ff;
+  border: 1px solid rgba(0, 161, 155, 0.6);
+  background: rgba(0, 161, 155, 0.08);
+  color: var(--color-primary);
   padding: 0.5rem 1rem;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .neon-button:hover {
-  box-shadow: 0 0 16px rgba(0, 217, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 161, 155, 0.12);
+  transform: translateY(-1px);
 }
 
-@keyframes glow {
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 40px rgba(0, 217, 255, 0.6);
-  }
-}
-
-@keyframes glow-purple {
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(215, 0, 255, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 40px rgba(215, 0, 255, 0.6);
-  }
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 0 0 rgba(0, 217, 255, 0.7);
-  }
-
-  50% {
-    box-shadow: 0 0 0 10px rgba(0, 217, 255, 0);
-  }
+@keyframes subtle-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,161,155,0.06); }
+  50% { box-shadow: 0 0 0 10px rgba(0,161,155,0); }
 }
 
 .glow-cyan {
-  animation: glow 2s ease-in-out infinite;
+  animation: subtle-pulse 3s ease-in-out infinite;
 }
 
 .glow-purple {
-  animation: glow-purple 2s ease-in-out infinite;
+  box-shadow: 0 8px 30px rgba(204,218,71,0.04);
 }
 
 .pulse-glow {
-  animation: pulse-glow 2s infinite;
+  animation: subtle-pulse 2.5s infinite;
 }

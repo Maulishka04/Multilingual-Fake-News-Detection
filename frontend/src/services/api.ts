@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import { BACKEND_URL, ERROR_MESSAGES, type LanguageCode } from "../utils/constants";
+import { BACKEND_URL, ERROR_MESSAGES, type LanguageCode} from "../utils/constants";
 
 export interface ExplanationPayload {
   positive_words: string[];
@@ -17,6 +17,7 @@ export interface PredictionResponse {
 interface PredictPayload {
   text: string;
   language: LanguageCode;
+  model_type: "svm" | "mbert"; // Add model type to payload interface
 }
 
 const emptyExplanation: ExplanationPayload = {
@@ -63,20 +64,42 @@ const normalizePredictionResponse = (response: PredictionResponse): PredictionRe
   },
 });
 
-export const predictText = async (text: string, language: LanguageCode): Promise<PredictionResponse> => {
+export const predictText = async (
+  text: string,
+  language: LanguageCode,
+  modelType: "svm" | "mbert" = "svm"
+): Promise<PredictionResponse> => {
   try {
-    const payload: PredictPayload = { text, language };
-    const response = await apiClient.post<PredictionResponse>("/predict", payload);
+    const payload: PredictPayload = {
+      text,
+      language,
+      model_type: modelType, // Add model type to payload
+    };
+    const response = await apiClient.post<PredictionResponse>(
+      `/predict?model=${modelType}`, // Include model type in query parameter
+      payload
+    );
     return normalizePredictionResponse(response.data);
   } catch (error) {
     throw new Error(getFriendlyErrorMessage(error));
   }
 };
 
-export const predictTextWithLime = async (text: string, language: LanguageCode): Promise<PredictionResponse> => {
+export const predictTextWithLime = async (
+  text: string,
+  language: LanguageCode,
+  modelType: "svm" | "mbert" = "svm"
+): Promise<PredictionResponse> => {
   try {
-    const payload: PredictPayload = { text, language };
-    const response = await apiClient.post<PredictionResponse>("/predict-with-lime", payload);
+    const payload: PredictPayload = {
+      text,
+      language,
+      model_type: modelType, // Add model type to payload
+    };
+    const response = await apiClient.post<PredictionResponse>(
+      `/predict-with-lime?model=${modelType}`, // Include model type in query parameter
+      payload
+    );
     return normalizePredictionResponse(response.data);
   } catch (error) {
     throw new Error(getFriendlyErrorMessage(error));

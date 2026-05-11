@@ -62,6 +62,8 @@ htmlcov/
 dataset/
 models/*.pkl
 models/**/*.pkl
+fake_news_backend/models/mbert_model/
+fake_news_backend/models/*.pkl
 outputs/
 
 # Large tabular/text datasets

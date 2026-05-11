@@ -22,9 +22,9 @@ interface ChartRow {
 export const ExplainerVisualization = ({ explanation }: ExplainerVisualizationProps): JSX.Element => {
   if (!explanation) {
     return (
-      <section className="rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-        <h2 className="text-lg font-semibold text-text-primary">LIME Explanation</h2>
-        <p className="mt-2 text-sm text-text-muted">No explanation available.</p>
+      <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+        <h2 className="text-lg font-semibold font-display text-[var(--color-text-primary)]">LIME Explanation</h2>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">No explanation available.</p>
       </section>
     );
   }
@@ -36,16 +36,16 @@ export const ExplainerVisualization = ({ explanation }: ExplainerVisualizationPr
     .reverse();
 
   return (
-    <section className="glow-cyan animate-fade-in rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-      <h2 className="mb-4 text-lg font-semibold text-text-primary">LIME Explanation</h2>
+    <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+      <h2 className="mb-4 text-lg font-semibold font-display text-[var(--color-text-primary)]">LIME Explanation</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-          <h3 className="mb-2 text-sm font-medium text-neon-success">Positive Words</h3>
+        <article className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+          <h3 className="mb-2 text-sm font-medium text-[var(--color-success)]">Positive Words</h3>
           <div className="flex flex-wrap gap-2">
             {explanation.positive_words.length ? (
               explanation.positive_words.map((word) => (
-                <span key={word} className="rounded-full bg-neon-success/20 px-2 py-1 text-xs text-neon-success">
+                <span key={word} className="rounded-full bg-[var(--color-success)]/20 px-2 py-1 text-xs text-[var(--color-success)]">
                   {word}
                 </span>
               ))
@@ -55,12 +55,12 @@ export const ExplainerVisualization = ({ explanation }: ExplainerVisualizationPr
           </div>
         </article>
 
-        <article className="rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-          <h3 className="mb-2 text-sm font-medium text-neon-danger">Negative Words</h3>
+        <article className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+          <h3 className="mb-2 text-sm font-medium text-[var(--color-danger)]">Negative Words</h3>
           <div className="flex flex-wrap gap-2">
             {explanation.negative_words.length ? (
               explanation.negative_words.map((word) => (
-                <span key={word} className="rounded-full bg-neon-danger/20 px-2 py-1 text-xs text-neon-danger">
+                <span key={word} className="rounded-full bg-[var(--color-danger)]/20 px-2 py-1 text-xs text-[var(--color-danger)]">
                   {word}
                 </span>
               ))
@@ -71,38 +71,35 @@ export const ExplainerVisualization = ({ explanation }: ExplainerVisualizationPr
         </article>
       </div>
 
-      <article className="mt-4 rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-        <h3 className="mb-3 text-sm font-medium text-text-muted">Word Importance (Top 10)</h3>
+      <article className="mt-4 rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+        <h3 className="mb-3 text-sm font-medium text-[var(--color-text-secondary)]">Word Importance (Top 10)</h3>
         {chartData.length ? (
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical" margin={{ left: 12, right: 12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(224,224,255,0.1)" />
-                <XAxis type="number" stroke="#E0E0FF" tick={{ fill: "#E0E0FF" }} />
-                <YAxis type="category" dataKey="word" stroke="#E0E0FF" tick={{ fill: "#E0E0FF" }} width={100} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,161,155,0.2)" />
+                <XAxis type="number" stroke="var(--color-text-primary)" tick={{ fill: "var(--color-text-primary)" }} />
+                <YAxis type="category" dataKey="word" stroke="var(--color-text-primary)" tick={{ fill: "var(--color-text-primary)" }} width={100} />
                 <Tooltip
-                  contentStyle={{ background: "#0A0E27", border: "1px solid rgba(0,217,255,0.4)" }}
+                  contentStyle={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                   formatter={(value) => [Number(value).toFixed(4), "Importance"]}
                 />
                 <Bar dataKey="score">
                   {chartData.map((entry) => (
-                    <Cell
-                      key={entry.word}
-                      fill={entry.score >= 0 ? "#00FF41" : "#FF0055"}
-                    />
+                    <Cell key={entry.word} fill={entry.score >= 0 ? "var(--color-success)" : "var(--color-danger)"} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-sm text-text-muted">No explanation scores available.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">No explanation scores available.</p>
         )}
       </article>
 
-      <article className="mt-4 rounded-2xl border border-neon-cyan/30 bg-gradient-card p-6 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-neon-cyan/60">
-        <h3 className="mb-2 text-sm font-medium text-text-muted">Full Explanation</h3>
-        <p className="text-sm text-text-primary">{explanation.explanation_text || "No explanation available."}</p>
+      <article className="mt-4 rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-bg-secondary)] p-6 shadow transition-all duration-300 hover:border-[var(--color-primary)]/60">
+        <h3 className="mb-2 text-sm font-medium text-[var(--color-text-secondary)]">Full Explanation</h3>
+        <p className="text-sm text-[var(--color-text-primary)]">{explanation.explanation_text || "No explanation available."}</p>
       </article>
     </section>
   );

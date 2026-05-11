@@ -7,14 +7,17 @@ export interface AnalysisRecord extends PredictionResponse {
   text: string;
   language: LanguageCode;
   createdAt: string;
+  modelType: "svm" | "mbert";  // ← Add this
 }
 
 interface AnalysisStoreState {
+  hasSeenWelcome: boolean;
   currentAnalysis: AnalysisRecord | null;
   history: AnalysisRecord[];
   isLoading: boolean;
   error: string | null;
   selectedLanguage: LanguageCode;
+  setHasSeenWelcome: (seen: boolean) => void;
   setCurrentAnalysis: (analysis: AnalysisRecord | null) => void;
   addToHistory: (analysis: AnalysisRecord) => void;
   clearHistory: () => void;
@@ -55,6 +58,7 @@ const getHistoryFromStorage = (): AnalysisRecord[] => {
 };
 
 export const useAnalysisStore = create<AnalysisStoreState>((set) => ({
+  hasSeenWelcome: (typeof window !== "undefined" && !!JSON.parse(localStorage.getItem("mfn_welcome_v1") || "false")) || false,
   currentAnalysis: null,
   history: [],
   isLoading: false,
@@ -94,6 +98,15 @@ export const useAnalysisStore = create<AnalysisStoreState>((set) => ({
   loadHistoryFromStorage: () => {
     const loadedHistory = getHistoryFromStorage();
     set({ history: loadedHistory });
+  },
+
+  setHasSeenWelcome: (seen) => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("mfn_welcome_v1", JSON.stringify(Boolean(seen)));
+      }
+    } catch {}
+    set({ hasSeenWelcome: Boolean(seen) });
   },
 
   setError: (error) => {
