@@ -23,5 +23,7 @@ services:
       # Model loading
       - key: USE_CUDA
         value: "false"
+      - key: ENABLE_MBERT
+        value: "false"
       - key: MBERT_MODEL_PATH
         value: "/opt/render/project/src/fake_news_backend/models/mbert_model"

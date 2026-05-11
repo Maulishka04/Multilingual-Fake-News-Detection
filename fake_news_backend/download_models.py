@@ -2,262 +2,187 @@
 """
 Download and validate model artifacts for the fake news detection backend.
 
-This script handles:
-- Downloading SVM model and vectorizer from GitHub LFS (if available)
-- Downloading/preparing mBERT model from Hugging Face
-- Validating file integrity
-- Creating necessary directory structure
+This script now focuses on the SVM stack for Render's free tier.
+By default it verifies the cached mBERT files if they already exist,
+but it does not re-download them unless explicitly enabled.
 """
 
 import os
 import sys
-import shutil
-import tempfile
 from pathlib import Path
 from typing import Tuple
-import urllib.request
 import urllib.error
+import urllib.request
 
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
-from config import (
-    MODELS_DIR,
-    SVM_MODEL_PATH,
-    SVM_VECTORIZER_PATH,
-    MBERT_MODEL_PATH,
-)
+from config import MBERT_MODEL_PATH, MODELS_DIR, SVM_MODEL_PATH, SVM_VECTORIZER_PATH
 
 
 class ModelDownloader:
     """Handle downloading and validating model files."""
 
-    # GitHub repo LFS raw URLs (update if repo URL changes)
     GITHUB_REPO_RAW = "https://raw.githubusercontent.com/Maulishka04/Multilingual-Fake-News-Detection/main"
-    
-    # SVM model file URLs (from GitHub LFS)
-    SVM_MODEL_URL = f"{GITHUB_REPO_RAW}/models/linear_svc_calibrated_tfidf.pkl"
-    SVM_VECTORIZER_URL = f"{GITHUB_REPO_RAW}/models/tfidf_vectorizer.pkl"
-    
-    # Hugging Face model
+    SVM_MODEL_URL = f"{GITHUB_REPO_RAW}/fake_news_backend/models/linear_svc_calibrated_tfidf.pkl"
+    SVM_VECTORIZER_URL = f"{GITHUB_REPO_RAW}/fake_news_backend/models/tfidf_vectorizer.pkl"
+    ENABLE_MBERT_DOWNLOAD = os.getenv("ENABLE_MBERT_DOWNLOAD", "false").lower() == "true"
     MBERT_MODEL_HF = "bert-base-multilingual-cased"
 
     @staticmethod
     def ensure_models_dir() -> None:
-        """Create models directory if it doesn't exist."""
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        MBERT_MODEL_PATH.mkdir(parents=True, exist_ok=True)
         print(f"✓ Models directory ready: {MODELS_DIR}")
 
     @staticmethod
+    def _is_valid_binary(path: Path, minimum_size: int = 1000) -> bool:
+        return path.exists() and path.is_file() and path.stat().st_size >= minimum_size
+
+    @staticmethod
     def download_file(url: str, dest_path: Path, timeout: int = 30) -> bool:
-        """
-        Download a file from URL with progress indication.
-        
-        Args:
-            url: Source URL
-            dest_path: Destination file path
-            timeout: Download timeout in seconds
-            
-        Returns:
-            True if successful, False otherwise
-        """
+        """Download a file using urllib.request.urlopen with timeout support."""
         try:
             print(f"  Downloading: {url}")
             print(f"  Destination: {dest_path}")
-            
-            # Create a custom URL opener with user agent
-            opener = urllib.request.build_opener()
-            opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
-            urllib.request.install_opener(opener)
-            
-            # Download with progress
-            def download_with_progress(block_num, block_size, total_size):
-                downloaded = block_num * block_size
-                if total_size > 0:
-                    percent = min(downloaded * 100 / total_size, 100)
-                    print(f"    Progress: {percent:.1f}% ({downloaded / 1024 / 1024:.1f}MB)", end='\r')
-            
-            urllib.request.urlretrieve(
+
+            request = urllib.request.Request(
                 url,
-                dest_path,
-                reporthook=download_with_progress,
-                timeout=timeout
+                headers={"User-Agent": "Mozilla/5.0"},
             )
-            print()  # New line after progress
+
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                total_size = int(response.headers.get("Content-Length", "0") or 0)
+                downloaded = 0
+                chunk_size = 1024 * 1024
+                with dest_path.open("wb") as output_file:
+                    while True:
+                        chunk = response.read(chunk_size)
+                        if not chunk:
+                            break
+                        output_file.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = min(downloaded * 100 / total_size, 100)
+                            print(
+                                f"    Progress: {percent:.1f}% ({downloaded / 1024 / 1024:.1f}MB)",
+                                end="\r",
+                            )
+
+            print()
             print(f"  ✓ Downloaded: {dest_path.name}")
             return True
-            
-        except (urllib.error.URLError, urllib.error.HTTPError, Exception) as e:
-            print(f"  ✗ Failed to download {url}: {e}")
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+            print(f"  ✗ Failed to download {url}: {exc}")
+            return False
+        except Exception as exc:
+            print(f"  ✗ Unexpected download error for {url}: {exc}")
             return False
 
     @staticmethod
     def download_svm_models() -> bool:
-        """
-        Download SVM model and vectorizer.
-        
-        Returns:
-            True if both files exist (downloaded or already present), False otherwise
-        """
         print("\n📦 Checking SVM models...")
-        
-        # Check if already exist
-        if SVM_MODEL_PATH.exists() and SVM_VECTORIZER_PATH.exists():
+
+        if ModelDownloader._is_valid_binary(SVM_MODEL_PATH) and ModelDownloader._is_valid_binary(SVM_VECTORIZER_PATH):
             model_size = SVM_MODEL_PATH.stat().st_size / 1024 / 1024
             vec_size = SVM_VECTORIZER_PATH.stat().st_size / 1024 / 1024
             print(f"✓ SVM model already exists ({model_size:.1f}MB)")
             print(f"✓ Vectorizer already exists ({vec_size:.1f}MB)")
             return True
-        
-        print("  SVM models not found. Attempting download from GitHub LFS...")
-        
-        # Try to download both files
-        model_success = ModelDownloader.download_file(
-            ModelDownloader.SVM_MODEL_URL,
-            SVM_MODEL_PATH
-        )
-        
-        vectorizer_success = ModelDownloader.download_file(
-            ModelDownloader.SVM_VECTORIZER_URL,
-            SVM_VECTORIZER_PATH
-        )
-        
-        if model_success and vectorizer_success:
+
+        print("  SVM models not found. Attempting download from GitHub raw/LFS fallback...")
+
+        model_success = ModelDownloader.download_file(ModelDownloader.SVM_MODEL_URL, SVM_MODEL_PATH)
+        vectorizer_success = ModelDownloader.download_file(ModelDownloader.SVM_VECTORIZER_URL, SVM_VECTORIZER_PATH)
+
+        if model_success and vectorizer_success and ModelDownloader._is_valid_binary(SVM_MODEL_PATH) and ModelDownloader._is_valid_binary(SVM_VECTORIZER_PATH):
             print("✓ SVM models downloaded successfully")
             return True
-        
-        print("⚠ Could not download SVM models from GitHub LFS.")
-        print("  Note: If running on Render, ensure Git LFS files are pulled during build.")
+
+        print("⚠ Could not download SVM models.")
+        print("  Make sure Git LFS objects are pushed and available in the repository.")
         return False
 
     @staticmethod
     def download_mbert_model() -> bool:
-        """
-        Download mBERT model from Hugging Face.
-        
-        Returns:
-            True if model is ready, False otherwise
-        """
         print("\n📦 Checking mBERT model...")
-        
-        if MBERT_MODEL_PATH.exists():
-            # Validate that it has required files
-            required_files = ['config.json', 'tokenizer.json', 'model.safetensors']
-            if all((MBERT_MODEL_PATH / f).exists() for f in required_files):
-                model_size = sum(
-                    f.stat().st_size for f in MBERT_MODEL_PATH.rglob('*') if f.is_file()
-                ) / 1024 / 1024
-                print(f"✓ mBERT model already exists ({model_size:.1f}MB)")
-                return True
-        
+
+        required_files = ["config.json", "tokenizer.json", "tokenizer_config.json", "model.safetensors"]
+        if all((MBERT_MODEL_PATH / name).exists() for name in required_files):
+            model_size = sum(file.stat().st_size for file in MBERT_MODEL_PATH.rglob("*") if file.is_file()) / 1024 / 1024
+            print(f"✓ mBERT model already exists ({model_size:.1f}MB)")
+            return True
+
+        if not ModelDownloader.ENABLE_MBERT_DOWNLOAD:
+            print("  Skipping mBERT download (disabled by default to preserve memory on Render)")
+            return False
+
         print(f"  Downloading mBERT from Hugging Face: {ModelDownloader.MBERT_MODEL_HF}")
-        
         try:
-            # Download tokenizer
-            print("  Downloading tokenizer...")
-            tokenizer = AutoTokenizer.from_pretrained(
-                ModelDownloader.MBERT_MODEL_HF,
-                cache_dir=str(MBERT_MODEL_PATH.parent)
-            )
-            
-            # Download model
-            print("  Downloading model weights...")
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+            MBERT_MODEL_PATH.mkdir(parents=True, exist_ok=True)
+            tokenizer = AutoTokenizer.from_pretrained(ModelDownloader.MBERT_MODEL_HF)
             model = AutoModelForSequenceClassification.from_pretrained(
                 ModelDownloader.MBERT_MODEL_HF,
                 num_labels=2,
-                cache_dir=str(MBERT_MODEL_PATH.parent)
+                low_cpu_mem_usage=True,
             )
-            
-            # Save locally
-            print(f"  Saving to {MBERT_MODEL_PATH}...")
-            MBERT_MODEL_PATH.mkdir(parents=True, exist_ok=True)
             tokenizer.save_pretrained(MBERT_MODEL_PATH)
             model.save_pretrained(MBERT_MODEL_PATH)
-            
-            model_size = sum(
-                f.stat().st_size for f in MBERT_MODEL_PATH.rglob('*') if f.is_file()
-            ) / 1024 / 1024
+
+            model_size = sum(file.stat().st_size for file in MBERT_MODEL_PATH.rglob("*") if file.is_file()) / 1024 / 1024
             print(f"✓ mBERT model downloaded and saved ({model_size:.1f}MB)")
             return True
-            
-        except Exception as e:
-            print(f"✗ Failed to download mBERT model: {e}")
+        except Exception as exc:
+            print(f"✗ Failed to download mBERT model: {exc}")
             return False
 
     @staticmethod
     def validate_models() -> Tuple[bool, str]:
-        """
-        Validate that all required model files exist and are accessible.
-        
-        Returns:
-            Tuple of (is_valid, message)
-        """
         print("\n🔍 Validating models...")
-        
+
         issues = []
-        
-        # Check SVM model
-        if not SVM_MODEL_PATH.exists():
-            issues.append(f"SVM model missing: {SVM_MODEL_PATH}")
-        else:
-            size = SVM_MODEL_PATH.stat().st_size
-            if size < 1000:  # Less than 1KB seems invalid
-                issues.append(f"SVM model too small ({size} bytes)")
-        
-        # Check vectorizer
-        if not SVM_VECTORIZER_PATH.exists():
-            issues.append(f"SVM vectorizer missing: {SVM_VECTORIZER_PATH}")
-        else:
-            size = SVM_VECTORIZER_PATH.stat().st_size
-            if size < 1000:
-                issues.append(f"Vectorizer too small ({size} bytes)")
-        
-        # Check mBERT
-        if not MBERT_MODEL_PATH.exists():
-            issues.append(f"mBERT model directory missing: {MBERT_MODEL_PATH}")
-        else:
-            required_files = ['config.json', 'tokenizer.json']
+
+        if not ModelDownloader._is_valid_binary(SVM_MODEL_PATH):
+            issues.append(f"SVM model missing or invalid: {SVM_MODEL_PATH}")
+        if not ModelDownloader._is_valid_binary(SVM_VECTORIZER_PATH):
+            issues.append(f"SVM vectorizer missing or invalid: {SVM_VECTORIZER_PATH}")
+
+        if MBERT_MODEL_PATH.exists():
+            required_files = ["config.json", "tokenizer.json", "tokenizer_config.json"]
             for fname in required_files:
                 if not (MBERT_MODEL_PATH / fname).exists():
                     issues.append(f"mBERT missing {fname}")
-        
+
         if issues:
             return False, "\n".join(f"  ✗ {issue}" for issue in issues)
-        
-        return True, "✓ All models validated successfully"
+
+        return True, "✓ All validated model artifacts are present"
 
     @classmethod
     def run(cls) -> bool:
-        """
-        Run the complete model download and validation process.
-        
-        Returns:
-            True if all models are available, False otherwise
-        """
         print("=" * 60)
         print("🤖 Model Downloader")
         print("=" * 60)
-        
+
         try:
             cls.ensure_models_dir()
-            
+
             svm_ok = cls.download_svm_models()
             mbert_ok = cls.download_mbert_model()
-            
             is_valid, msg = cls.validate_models()
             print(msg)
-            
+
             if is_valid:
-                print("\n✅ All models ready!")
+                print("\n✅ Required models are ready!")
+                if not mbert_ok:
+                    print("  → mBERT was intentionally skipped to reduce memory usage")
                 return True
-            else:
-                print("\n⚠ Some models are missing or invalid")
-                if not svm_ok:
-                    print("  → SVM models need to be downloaded via Git LFS")
-                return False
-                
-        except Exception as e:
-            print(f"\n❌ Error: {e}")
+
+            print("\n⚠ Some models are missing or invalid")
+            if not svm_ok:
+                print("  → SVM models must be available for the backend to function")
+            return False
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
             return False
 
 

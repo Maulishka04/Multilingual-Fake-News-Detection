@@ -1,23 +1,22 @@
+import os
 import pickle
 import sys
-from typing import Literal, Dict, Any
+from threading import Lock
+from typing import Any, Dict, Literal
 
 import torch
 from pydantic import BaseModel, ConfigDict, Field
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from explainers import LIMEExplainer, MBERTExplainer
 from config import (
+    MBERT_MAX_LENGTH,
+    MBERT_MODEL_PATH,
     SVM_MODEL_PATH,
     SVM_VECTORIZER_PATH,
-    MBERT_MODEL_PATH,
-    MBERT_MAX_LENGTH,
     USE_CUDA,
 )
 
@@ -49,12 +48,15 @@ MBERT_MODEL = None
 MBERT_TOKENIZER = None
 MBERT_EXPLAINER = None
 DEVICE = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
+MBERT_ENABLED = os.getenv("ENABLE_MBERT", "false").lower() == "true"
+MBERT_LOAD_LOCK = Lock()
 
 # Model load status tracking
 MODEL_STATUS: Dict[str, Any] = {
     "svm_loaded": False,
     "mbert_loaded": False,
     "errors": [],
+    "mbert_enabled": MBERT_ENABLED,
 }
 
 
@@ -73,27 +75,76 @@ class PredictRequest(BaseModel):
 # STARTUP EVENT
 # =========================================================
 
+
+def ensure_mbert_loaded() -> None:
+    """Load mBERT lazily only when explicitly enabled."""
+    global MBERT_MODEL, MBERT_TOKENIZER, MBERT_EXPLAINER
+
+    if MBERT_MODEL is not None and MBERT_TOKENIZER is not None and MBERT_EXPLAINER is not None:
+        return
+
+    if not MBERT_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="mBERT is disabled in this deployment to keep memory usage within the Render free-tier limit. Use the SVM model or enable ENABLE_MBERT on a larger instance.",
+        )
+
+    with MBERT_LOAD_LOCK:
+        if MBERT_MODEL is not None and MBERT_TOKENIZER is not None and MBERT_EXPLAINER is not None:
+            return
+
+        if not MBERT_MODEL_PATH.exists():
+            raise HTTPException(
+                status_code=503,
+                detail=f"mBERT model directory not found: {MBERT_MODEL_PATH}. Run download_models.py on a machine with enough memory or enable model artifacts in your deployment.",
+            )
+
+        required_files = ["config.json", "tokenizer.json", "tokenizer_config.json"]
+        missing_files = [name for name in required_files if not (MBERT_MODEL_PATH / name).exists()]
+        if missing_files:
+            raise HTTPException(
+                status_code=503,
+                detail=f"mBERT is incomplete. Missing files: {', '.join(missing_files)}",
+            )
+
+        try:
+            MBERT_TOKENIZER = AutoTokenizer.from_pretrained(str(MBERT_MODEL_PATH), local_files_only=True)
+            MBERT_MODEL = AutoModelForSequenceClassification.from_pretrained(
+                str(MBERT_MODEL_PATH),
+                local_files_only=True,
+                low_cpu_mem_usage=True,
+            )
+            MBERT_MODEL.to(DEVICE)
+            MBERT_MODEL.eval()
+            MBERT_EXPLAINER = MBERTExplainer(MBERT_TOKENIZER, MBERT_MODEL, DEVICE)
+            MODEL_STATUS["mbert_loaded"] = True
+            print("✅ mBERT loaded lazily on demand")
+        except Exception as exc:
+            MBERT_MODEL = None
+            MBERT_TOKENIZER = None
+            MBERT_EXPLAINER = None
+            MODEL_STATUS["errors"].append(f"Failed to lazy-load mBERT: {exc}")
+            raise HTTPException(status_code=503, detail=f"Unable to load mBERT on demand: {exc}")
+
+
 @app.on_event("startup")
 def load_artifacts() -> None:
-    """Load all model artifacts with automatic download fallback."""
+    """Load the SVM stack only; keep mBERT off memory at startup."""
     global MODEL, VECTORIZER, LIME_EXPLAINER
-    global MBERT_MODEL, MBERT_TOKENIZER, MBERT_EXPLAINER
     global MODEL_STATUS
 
     print("\n" + "=" * 70)
-    print("🚀 Starting Backend - Loading Models")
+    print("🚀 Starting Backend - Loading SVM Models")
     print("=" * 70)
 
-    # Step 1: Attempt to download missing models
     if HAS_DOWNLOADER:
-        print("\n📥 Checking and downloading models if needed...")
+        print("\n📥 Checking SVM artifacts if needed...")
         try:
             ModelDownloader.run()
         except Exception as e:
             print(f"⚠ Model download attempt failed: {e}")
             print("  Continuing with existing files...")
 
-    # Step 2: Load SVM stack
     print("\n📦 Loading SVM model stack...")
     try:
         if not SVM_MODEL_PATH.exists():
@@ -109,10 +160,9 @@ def load_artifacts() -> None:
                 f"  → Run: python download_models.py"
             )
 
-        # Validate file sizes
         model_size = SVM_MODEL_PATH.stat().st_size
         vec_size = SVM_VECTORIZER_PATH.stat().st_size
-        
+
         if model_size < 1000 or vec_size < 1000:
             raise ValueError(
                 f"Model files appear corrupted\n"
@@ -134,6 +184,7 @@ def load_artifacts() -> None:
         print("  ✅ TF-IDF vectorizer loaded successfully")
         print(f"     Size: {vec_size / 1024 / 1024:.1f}MB")
         print("  ✅ LIME explainer initialized")
+        print("  ✅ mBERT is disabled on startup to save memory")
 
     except Exception as exc:
         error_msg = f"Failed to load SVM: {exc}"
@@ -143,64 +194,19 @@ def load_artifacts() -> None:
         VECTORIZER = None
         LIME_EXPLAINER = None
 
-    # Step 3: Load mBERT stack
-    print("\n📦 Loading mBERT model stack...")
-    try:
-        if not MBERT_MODEL_PATH.exists():
-            raise FileNotFoundError(
-                f"mBERT model directory not found: {MBERT_MODEL_PATH}\n"
-                f"  → Run: python download_models.py"
-            )
-
-        # Validate required files
-        required_files = ['config.json', 'tokenizer.json']
-        for fname in required_files:
-            if not (MBERT_MODEL_PATH / fname).exists():
-                raise FileNotFoundError(
-                    f"mBERT missing required file: {fname}"
-                )
-
-        MBERT_TOKENIZER = AutoTokenizer.from_pretrained(str(MBERT_MODEL_PATH))
-        MBERT_MODEL = AutoModelForSequenceClassification.from_pretrained(
-            str(MBERT_MODEL_PATH)
-        )
-
-        MBERT_MODEL.to(DEVICE)
-        MBERT_MODEL.eval()
-
-        MBERT_EXPLAINER = MBERTExplainer(MBERT_TOKENIZER, MBERT_MODEL, DEVICE)
-        MODEL_STATUS["mbert_loaded"] = True
-
-        model_size = sum(
-            f.stat().st_size for f in MBERT_MODEL_PATH.rglob('*') if f.is_file()
-        ) / 1024 / 1024
-
-        print("  ✅ mBERT tokenizer loaded successfully")
-        print("  ✅ mBERT model loaded successfully")
-        print(f"     Size: {model_size:.1f}MB")
-        print("  ✅ mBERT explainer initialized")
-
-    except Exception as exc:
-        error_msg = f"Failed to load mBERT: {exc}"
-        MODEL_STATUS["errors"].append(error_msg)
-        print(f"  ❌ {error_msg}")
-        MBERT_MODEL = None
-        MBERT_TOKENIZER = None
-        MBERT_EXPLAINER = None
-
-    # Step 4: Summary
     print("\n" + "-" * 70)
     print(f"✅ Device: {DEVICE}")
     print(f"✅ SVM Ready: {MODEL_STATUS['svm_loaded']}")
+    print(f"✅ mBERT Enabled: {MBERT_ENABLED}")
     print(f"✅ mBERT Ready: {MODEL_STATUS['mbert_loaded']}")
 
     if MODEL_STATUS["errors"]:
         print(f"\n⚠ Warnings ({len(MODEL_STATUS['errors'])}):")
         for err in MODEL_STATUS["errors"]:
-            print(f"  • {err.split(chr(10))[0]}")  # First line only
+            print(f"  • {err.split(chr(10))[0]}")
 
-    if not (MODEL_STATUS["svm_loaded"] or MODEL_STATUS["mbert_loaded"]):
-        print("\n❌ CRITICAL: No models loaded! Backend will not function.")
+    if not MODEL_STATUS["svm_loaded"]:
+        print("\n❌ CRITICAL: SVM models not loaded! Backend will not function.")
         print("   → Run: python download_models.py")
         print("   → Then restart the backend")
 
@@ -324,12 +330,7 @@ def predict(payload: PredictRequest, model: Literal["svm", "mbert"] = "svm"):
         # =====================================================
 
         elif model_type == "mbert":
-
-            if MBERT_MODEL is None or MBERT_TOKENIZER is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="mBERT model is not loaded."
-                )
+            ensure_mbert_loaded()
 
             inputs = MBERT_TOKENIZER(
                 cleaned_text,
@@ -339,27 +340,14 @@ def predict(payload: PredictRequest, model: Literal["svm", "mbert"] = "svm"):
                 max_length=MBERT_MAX_LENGTH
             )
 
-            inputs = {
-                k: v.to(DEVICE)
-                for k, v in inputs.items()
-            }
+            inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
             with torch.no_grad():
-
                 outputs = MBERT_MODEL(**inputs)
 
-            probabilities = torch.softmax(
-                outputs.logits,
-                dim=1
-            )
-
-            predicted_label = int(
-                torch.argmax(probabilities, dim=1).item()
-            )
-
-            confidence = float(
-                torch.max(probabilities).item()
-            )
+            probabilities = torch.softmax(outputs.logits, dim=1)
+            predicted_label = int(torch.argmax(probabilities, dim=1).item())
+            confidence = float(torch.max(probabilities).item())
 
         # =====================================================
         # INVALID MODEL
@@ -469,16 +457,11 @@ def predict_with_lime(payload: PredictRequest, model: Literal["svm", "mbert"] = 
         # =========================================
 
         elif model_type == "mbert":
-
-            if MBERT_MODEL is None or MBERT_TOKENIZER is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="mBERT model is not loaded."
-                )
+            ensure_mbert_loaded()
 
             if MBERT_EXPLAINER is None:
                 raise HTTPException(
-                    status_code=500,
+                    status_code=503,
                     detail="mBERT explainer is not initialized."
                 )
 
