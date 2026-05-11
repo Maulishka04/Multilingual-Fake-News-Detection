@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: multilingual-fake-news-backend
+    env: python
+    plan: free
+    # Use the specific region if needed
+    # region: oregon
+    buildCommand: |
+      pip install --upgrade pip
+      cd fake_news_backend
+      pip install -r requirements.txt
+      python download_models.py
+    startCommand: cd fake_news_backend && python main.py
+    envVars:
+      # Ensure Git LFS files are downloaded
+      - key: GIT_LFS_SKIP_SMUDGE
+        value: "0"
+      # Backend configuration
+      - key: BACKEND_HOST
+        value: "0.0.0.0"
+      - key: BACKEND_PORT
+        value: "8000"
+      # Model loading
+      - key: USE_CUDA
+        value: "false"
+      - key: MBERT_MODEL_PATH
+        value: "/opt/render/project/src/fake_news_backend/models/mbert_model"

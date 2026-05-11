@@ -1,5 +1,6 @@
 import pickle
-from typing import Literal
+import sys
+from typing import Literal, Dict, Any
 
 import torch
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +20,14 @@ from config import (
     MBERT_MAX_LENGTH,
     USE_CUDA,
 )
+
+# Try to import the model downloader; warn if not available
+try:
+    from download_models import ModelDownloader
+    HAS_DOWNLOADER = True
+except ImportError:
+    HAS_DOWNLOADER = False
+    print("⚠ Warning: download_models module not available")
 
 
 app = FastAPI(title="Fake News Backend")
@@ -41,6 +50,13 @@ MBERT_TOKENIZER = None
 MBERT_EXPLAINER = None
 DEVICE = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
 
+# Model load status tracking
+MODEL_STATUS: Dict[str, Any] = {
+    "svm_loaded": False,
+    "mbert_loaded": False,
+    "errors": [],
+}
+
 
 # =========================================================
 # REQUEST SCHEMA
@@ -59,18 +75,50 @@ class PredictRequest(BaseModel):
 
 @app.on_event("startup")
 def load_artifacts() -> None:
+    """Load all model artifacts with automatic download fallback."""
     global MODEL, VECTORIZER, LIME_EXPLAINER
-    global MBERT_MODEL, MBERT_TOKENIZER
+    global MBERT_MODEL, MBERT_TOKENIZER, MBERT_EXPLAINER
+    global MODEL_STATUS
 
+    print("\n" + "=" * 70)
+    print("🚀 Starting Backend - Loading Models")
+    print("=" * 70)
+
+    # Step 1: Attempt to download missing models
+    if HAS_DOWNLOADER:
+        print("\n📥 Checking and downloading models if needed...")
+        try:
+            ModelDownloader.run()
+        except Exception as e:
+            print(f"⚠ Model download attempt failed: {e}")
+            print("  Continuing with existing files...")
+
+    # Step 2: Load SVM stack
+    print("\n📦 Loading SVM model stack...")
     try:
-
-        # Load the classical ML stack used for fast predictions and LIME.
-
         if not SVM_MODEL_PATH.exists():
-            raise FileNotFoundError(f"SVM model file not found: {SVM_MODEL_PATH}")
+            raise FileNotFoundError(
+                f"SVM model file not found: {SVM_MODEL_PATH}\n"
+                f"  → Run: python download_models.py\n"
+                f"  → Or ensure Git LFS files are pulled"
+            )
 
         if not SVM_VECTORIZER_PATH.exists():
-            raise FileNotFoundError(f"Vectorizer file not found: {SVM_VECTORIZER_PATH}")
+            raise FileNotFoundError(
+                f"Vectorizer file not found: {SVM_VECTORIZER_PATH}\n"
+                f"  → Run: python download_models.py"
+            )
+
+        # Validate file sizes
+        model_size = SVM_MODEL_PATH.stat().st_size
+        vec_size = SVM_VECTORIZER_PATH.stat().st_size
+        
+        if model_size < 1000 or vec_size < 1000:
+            raise ValueError(
+                f"Model files appear corrupted\n"
+                f"  → SVM size: {model_size} bytes\n"
+                f"  → Vectorizer size: {vec_size} bytes"
+            )
 
         with SVM_MODEL_PATH.open("rb") as model_file:
             MODEL = pickle.load(model_file)
@@ -79,43 +127,84 @@ def load_artifacts() -> None:
             VECTORIZER = pickle.load(vectorizer_file)
 
         LIME_EXPLAINER = LIMEExplainer(MODEL, VECTORIZER)
+        MODEL_STATUS["svm_loaded"] = True
 
-        print("✅ SVM model loaded successfully.")
-        print("✅ TF-IDF vectorizer loaded successfully.")
-        print("✅ LIME explainer initialized.")
+        print("  ✅ SVM model loaded successfully")
+        print(f"     Size: {model_size / 1024 / 1024:.1f}MB")
+        print("  ✅ TF-IDF vectorizer loaded successfully")
+        print(f"     Size: {vec_size / 1024 / 1024:.1f}MB")
+        print("  ✅ LIME explainer initialized")
 
-        # Load the transformer stack used for multilingual predictions.
+    except Exception as exc:
+        error_msg = f"Failed to load SVM: {exc}"
+        MODEL_STATUS["errors"].append(error_msg)
+        print(f"  ❌ {error_msg}")
+        MODEL = None
+        VECTORIZER = None
+        LIME_EXPLAINER = None
 
+    # Step 3: Load mBERT stack
+    print("\n📦 Loading mBERT model stack...")
+    try:
         if not MBERT_MODEL_PATH.exists():
-            raise FileNotFoundError(f"mBERT folder not found: {MBERT_MODEL_PATH}")
+            raise FileNotFoundError(
+                f"mBERT model directory not found: {MBERT_MODEL_PATH}\n"
+                f"  → Run: python download_models.py"
+            )
 
-        MBERT_TOKENIZER = AutoTokenizer.from_pretrained(MBERT_MODEL_PATH)
+        # Validate required files
+        required_files = ['config.json', 'tokenizer.json']
+        for fname in required_files:
+            if not (MBERT_MODEL_PATH / fname).exists():
+                raise FileNotFoundError(
+                    f"mBERT missing required file: {fname}"
+                )
 
+        MBERT_TOKENIZER = AutoTokenizer.from_pretrained(str(MBERT_MODEL_PATH))
         MBERT_MODEL = AutoModelForSequenceClassification.from_pretrained(
-            MBERT_MODEL_PATH
+            str(MBERT_MODEL_PATH)
         )
 
         MBERT_MODEL.to(DEVICE)
         MBERT_MODEL.eval()
 
         MBERT_EXPLAINER = MBERTExplainer(MBERT_TOKENIZER, MBERT_MODEL, DEVICE)
+        MODEL_STATUS["mbert_loaded"] = True
 
-        print("✅ mBERT tokenizer loaded successfully.")
-        print("✅ mBERT model loaded successfully.")
-        print("✅ mBERT explainer initialized.")
-        print(f"✅ Running on device: {DEVICE}")
+        model_size = sum(
+            f.stat().st_size for f in MBERT_MODEL_PATH.rglob('*') if f.is_file()
+        ) / 1024 / 1024
+
+        print("  ✅ mBERT tokenizer loaded successfully")
+        print("  ✅ mBERT model loaded successfully")
+        print(f"     Size: {model_size:.1f}MB")
+        print("  ✅ mBERT explainer initialized")
 
     except Exception as exc:
-
-        MODEL = None
-        VECTORIZER = None
-        LIME_EXPLAINER = None
-
+        error_msg = f"Failed to load mBERT: {exc}"
+        MODEL_STATUS["errors"].append(error_msg)
+        print(f"  ❌ {error_msg}")
         MBERT_MODEL = None
         MBERT_TOKENIZER = None
         MBERT_EXPLAINER = None
 
-        print(f"❌ Error loading artifacts: {exc}")
+    # Step 4: Summary
+    print("\n" + "-" * 70)
+    print(f"✅ Device: {DEVICE}")
+    print(f"✅ SVM Ready: {MODEL_STATUS['svm_loaded']}")
+    print(f"✅ mBERT Ready: {MODEL_STATUS['mbert_loaded']}")
+
+    if MODEL_STATUS["errors"]:
+        print(f"\n⚠ Warnings ({len(MODEL_STATUS['errors'])}):")
+        for err in MODEL_STATUS["errors"]:
+            print(f"  • {err.split(chr(10))[0]}")  # First line only
+
+    if not (MODEL_STATUS["svm_loaded"] or MODEL_STATUS["mbert_loaded"]):
+        print("\n❌ CRITICAL: No models loaded! Backend will not function.")
+        print("   → Run: python download_models.py")
+        print("   → Then restart the backend")
+
+    print("=" * 70 + "\n")
 
 
 # =========================================================
@@ -135,11 +224,38 @@ def root():
 
 @app.get("/health")
 def health_check():
-
+    """Basic health check endpoint."""
     return {
         "status": "healthy",
-        "svm_loaded": MODEL is not None,
-        "mbert_loaded": MBERT_MODEL is not None,
+        "svm_loaded": MODEL_STATUS["svm_loaded"],
+        "mbert_loaded": MODEL_STATUS["mbert_loaded"],
+    }
+
+
+# =========================================================
+# MODEL STATUS ENDPOINT
+# =========================================================
+
+@app.get("/status")
+def get_status():
+    """Detailed model status endpoint for diagnostics."""
+    return {
+        "backend": "operational",
+        "device": str(DEVICE),
+        "models": {
+            "svm": {
+                "loaded": MODEL_STATUS["svm_loaded"],
+                "model_file": str(SVM_MODEL_PATH),
+                "vectorizer_file": str(SVM_VECTORIZER_PATH),
+                "ready": MODEL is not None and VECTORIZER is not None,
+            },
+            "mbert": {
+                "loaded": MODEL_STATUS["mbert_loaded"],
+                "model_path": str(MBERT_MODEL_PATH),
+                "ready": MBERT_MODEL is not None and MBERT_TOKENIZER is not None,
+            },
+        },
+        "errors": MODEL_STATUS["errors"] if MODEL_STATUS["errors"] else None,
     }
 
 
